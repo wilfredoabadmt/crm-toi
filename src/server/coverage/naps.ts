@@ -504,15 +504,17 @@ export async function verifyClientCoverageNap(
     [closestNap.latitud, closestNap.longitud],
   ];
 
-  // Regla de negocio TOI: Umbral de 300 metros por ruta o lineal
-  const isFactible = routeDistM <= 300;
+  // Regla de negocio TOI: Umbral de 300 metros por distancia lineal (Haversine)
+  // La distancia lineal es más precisa para determinar proximidad real sin depender de obstáculos en la ruta
+  const isFactible = minLinearDist <= 300;
   const estado: CoverageQueryResult["estado"] = isFactible
     ? "COBERTURA_FACTIBLE"
     : "COBERTURA_DISTANTE_EVALUACION";
 
+  // Generar mensaje informativo para el agente IA con ambas distancias
   const mensajeIa = isFactible
-    ? `Tenemos cobertura factible en tu zona. La Caja NAP asignada es ${closestNap.napCode} (Red: ${closestNap.red}) a una distancia de ${routeDistM} metros. Informa al cliente que los requisitos son fotocopia de C.I. y factura de luz.`
-    : `La ubicación supera la distancia sugerida de 300m (distancia aproximada: ${routeDistM}m a la Caja NAP ${closestNap.napCode} - Red: ${closestNap.red}). Derivar caso para auditoría técnica o generar ficha de requisición.`;
+    ? `Tenemos cobertura factible en tu zona. La Caja NAP asignada es ${closestNap.napCode} (Red: ${closestNap.red}) a una distancia lineal de ${minLinearDist} metros${routeDistM ? ` (ruta por calles: ${routeDistM} metros)` : ''}. Informa al cliente que los requisitos son fotocopia de C.I. y factura de luz.`
+    : `La ubicación está a ${minLinearDist} metros (distancia lineal) de la Caja NAP ${closestNap.napCode} (Red: ${closestNap.red})${routeDistM ? `, ruta por calles: ${routeDistM} metros` : ''}. Derivar caso para auditoría técnica o generar ficha de requisición.`;
 
   // Guardar log de auditoría
   const db = getDb();
