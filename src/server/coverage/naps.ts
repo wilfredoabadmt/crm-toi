@@ -117,6 +117,21 @@ export function parseCoordinatesOrLink(input: string): {
     if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
   }
 
+  // Patrón 5: URLs de Google Maps acortadas (https://maps.app.goo.gl/...)
+  // Estos enlaces se usan en WhatsApp o canales de mensajería y contienen
+  // un hash que no incluye coordenadas directamente.
+  // Se detecta por el prefijo "maps.app.goo.gl" y se retorna null
+  // mientras que el hash se guarda para resolución posterior.
+  const mapsShortUrlMatch = clean.match(
+    /^https?:\/\/(www\.)?maps\.app\.goo\.gl\/(.+)$/
+  );
+  if (mapsShortUrlMatch && mapsShortUrlMatch[1]) {
+    const hash = mapsShortUrlMatch[1];
+    // Verificar si el hash corresponde a una URL de Google Maps que ya ha
+    // sido resuelta por otro servicio externo
+    return { lat: null, lng: null, is_gmaps_short_url: true, gmaps_short_hash: hash };
+  }
+
   return null;
 }
 

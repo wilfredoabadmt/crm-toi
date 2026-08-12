@@ -3,8 +3,8 @@
  * Script de verificación de secretos
  * Uso: node scripts/verify-secrets.js
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const SECRET_PATTERNS = [
   /sk-or-v1-[a-zA-Z0-9]{32,}/g,
