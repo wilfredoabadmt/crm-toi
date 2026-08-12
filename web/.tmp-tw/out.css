@@ -1,0 +1,12 @@
+.border-border\/50 {
+  border-color: color-mix(in srgb, var(--border) calc(0.5 * 100%), transparent)
+}
+
+.bg-accent {
+  --tw-bg-opacity: 1;
+  background-color: color-mix(in srgb, var(--accent) calc(var(--tw-bg-opacity, 1) * 100%), transparent)
+}
+
+.text-muted-foreground\/40 {
+  color: color-mix(in srgb, var(--muted-foreground) calc(0.4 * 100%), transparent)
+}

@@ -1,0 +1,211 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Sistema de diseño "TOI": Unificado con la landing de SaaS TOI.
+  Tipografía: Plus Jakarta Sans (igual que landing).
+  Acento primario: #1A75FF (azul eléctrico).
+  Los tokens de acento (--accent*) se sobreescriben en runtime por el
+  white-label de la organización (Configuración → Marca).
+*/
+@layer base {
+  :root {
+    /* Neutros (cool-slate, coherentes con landing) */
+    --bg: #f8fafc;
+    --bg-subtle: #f1f5f9;
+    --bg-panel: #e2e8f0;
+    --bg-hover: #f1f5f9;
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --text-4: #cbd5e1;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    /* Chat */
+    --chat-bg: #f1f5f9;
+    --bubble-out: #eef4ff;
+    --bubble-out-text: #1e3a5f;
+
+    /* Acento (default: azul eléctrico de la landing; white-label lo sobreescribe) */
+    --accent: #1a75ff;
+    --accent-hover: #0052cc;
+    --accent-soft: #dbeafe;
+    --accent-tint: #eff6ff;
+    --accent-text: #1e40af;
+    --bg-active: var(--accent-tint);
+
+    /* Cyan secundario (de la landing) */
+    --cyan: #00e5ff;
+
+    /* Estado */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #f43f5e;
+
+    /* Radios (generosos como la landing) */
+    --radius-sm: 10px;
+    --radius: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+
+    /* Sombras premium (con tinte azul como landing) */
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 8px 25px -5px rgba(15, 23, 42, 0.1);
+    --shadow-pop: 0 20px 50px -10px rgba(15, 23, 42, 0.18);
+    --shadow-button: 0 8px 25px rgba(26, 117, 255, 0.35), inset 0 1px 1px rgba(255,255,255,0.5);
+
+    /* Sidebar dark */
+    --sidebar-bg: #0f172a;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #ffffff;
+
+    /* Densidad de filas de conversación */
+    --row-py: 11px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Plus Jakarta Sans", var(--font-jakarta), system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--border-strong);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ─── Botones Glossy (estilo landing TOI) ─── */
+@layer components {
+  .btn-glossy-primary {
+    background: linear-gradient(180deg, #1a75ff, #0052cc) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 8px 25px rgba(0, 102, 255, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+    color: #fff !important;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-glossy-primary:hover {
+    background: linear-gradient(180deg, #3385ff, #1a75ff) !important;
+    box-shadow: 0 12px 30px rgba(0, 102, 255, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
+    transform: translateY(-1px);
+  }
+  .btn-glossy-primary:active {
+    transform: scale(0.98);
+  }
+  .btn-glossy-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* ─── Sidebar Navigation (estilo landing .nav-item) ─── */
+@layer components {
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 12px;
+    color: #94a3b8;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .sidebar-nav-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+  }
+  .sidebar-nav-item-active {
+    background: linear-gradient(180deg, #1a75ff, #0052cc) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 20px rgba(0, 102, 255, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .sidebar-nav-item-active svg {
+    color: #fff !important;
+  }
+}
+
+/* ─── Glass Cards (estilo landing para login/auth) ─── */
+@layer components {
+  .glass-card-dark {
+    background: rgba(18, 20, 26, 0.65);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .glass-card-dark:hover {
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  }
+  .glass-input-dark {
+    background: rgba(10, 12, 16, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    border-radius: 14px;
+    color: #f8fafc;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  .glass-input-dark:focus {
+    border-color: rgba(26, 117, 255, 0.5);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(26, 117, 255, 0.15);
+  }
+  .glass-input-dark::placeholder {
+    color: #64748b;
+    opacity: 0.7;
+  }
+}
+
+/* ─── Logo glow animado (como landing) ─── */
+@layer components {
+  .logo-glow {
+    display: inline-block;
+    filter: drop-shadow(0 2px 8px rgba(26, 117, 255, 0.2));
+    transition: transform 0.3s ease, filter 0.3s ease;
+  }
+  .logo-glow:hover {
+    transform: scale(1.04);
+    filter: drop-shadow(0 4px 16px rgba(0, 229, 255, 0.35));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

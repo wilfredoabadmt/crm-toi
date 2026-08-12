@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783657511753,
+      "tag": "0000_absurd_the_santerians",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785370991152,
+      "tag": "0001_stormy_onslaught",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785382200000,
+      "tag": "0002_coverage_zone",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785383500000,
+      "tag": "0003_coverage_polygon",
+      "breakpoints": true
+    }
+  ]
+}
