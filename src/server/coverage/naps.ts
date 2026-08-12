@@ -122,9 +122,8 @@ export function parseCoordinatesOrLink(input: string): {
   // un hash que no incluye coordenadas directamente.
   // Se detecta por el prefijo "maps.app.goo.gl" y se retorna null
   // mientras que el hash se guarda para resolución posterior.
-  const mapsShortUrlMatch = clean.match(
-    /^https?:\/\/(www\.)?maps\.app\.goo\.gl\/(.+)$/
-  );
+  const mapsShortUrlRegex = /^https?:\/\/(www\.)?maps\.app\.goo\.gl\/([^?&#]+)/i;
+  const mapsShortUrlMatch = clean.match(mapsShortUrlRegex);
   if (mapsShortUrlMatch && mapsShortUrlMatch[1]) {
     const hash = mapsShortUrlMatch[1];
     // Verificar si el hash corresponde a una URL de Google Maps que ya ha
