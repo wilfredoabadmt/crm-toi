@@ -43,9 +43,27 @@ export async function POST(req: Request) {
     for (const tableName of order) {
       const rows = payload[tableName];
       if (Array.isArray(rows) && rows.length > 0) {
+        // Query target table columns
+        const cols = await sql`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'public' AND table_name = ${tableName}
+        `;
+        const validCols = new Set(cols.map((c) => c.column_name));
+
+        const sanitizedRows = rows.map((r: Record<string, any>) => {
+          const clean: Record<string, any> = {};
+          for (const [k, v] of Object.entries(r)) {
+            if (validCols.has(k)) {
+              clean[k] = v;
+            }
+          }
+          return clean;
+        });
+
         await sql.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
-        await sql`INSERT INTO ${sql(tableName)} ${sql(rows)}`;
-        results[tableName] = rows.length;
+        await sql`INSERT INTO ${sql(tableName)} ${sql(sanitizedRows)}`;
+        results[tableName] = sanitizedRows.length;
       }
     }
 
