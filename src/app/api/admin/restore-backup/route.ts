@@ -23,27 +23,25 @@ export async function POST(req: Request) {
     // Disable foreign key constraints temporarily
     await sql.unsafe(`SET session_replication_role = 'replica';`);
 
-    const order = [
-      "user",
-      "account",
-      "organization",
-      "member",
-      "session",
-      "agent_profile",
-      "pipeline_stage",
-      "contact",
-      "conversation",
-      "message",
-      "agent_test_run",
-      "agent_test_case"
-    ];
+    const targetTables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `;
+    const targetTableNames = new Set(targetTables.map((t) => t.table_name));
 
     const results: Record<string, number> = {};
 
-    for (const tableName of order) {
-      const rows = payload[tableName];
-      if (Array.isArray(rows) && rows.length > 0) {
-        // Query target table columns
+    // First truncate target tables
+    for (const tableName of Object.keys(payload)) {
+      if (targetTableNames.has(tableName)) {
+        await sql.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
+      }
+    }
+
+    // Insert all tables in payload
+    for (const [tableName, rows] of Object.entries(payload)) {
+      if (targetTableNames.has(tableName) && Array.isArray(rows) && rows.length > 0) {
         const cols = await sql`
           SELECT column_name 
           FROM information_schema.columns 
@@ -61,8 +59,12 @@ export async function POST(req: Request) {
           return clean;
         });
 
-        await sql.unsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
-        await sql`INSERT INTO ${sql(tableName)} ${sql(sanitizedRows)}`;
+        // Insert in batches of 200 rows
+        const BATCH_SIZE = 200;
+        for (let i = 0; i < sanitizedRows.length; i += BATCH_SIZE) {
+          const batch = sanitizedRows.slice(i, i + BATCH_SIZE);
+          await sql`INSERT INTO ${sql(tableName)} ${sql(batch)}`;
+        }
         results[tableName] = sanitizedRows.length;
       }
     }
