@@ -122,11 +122,14 @@ export const DEPARTMENTS: DepartmentConfig[] = [
 /**
  * Encuentra el departamento asociado al nombre de etapa del pipeline.
  */
-export function getDepartmentByStageName(stageName: string | null | undefined): DepartmentConfig | null {
+export function getDepartmentByStageName(
+  stageName: string | null | undefined,
+  departments: DepartmentConfig[] = DEPARTMENTS
+): DepartmentConfig | null {
   if (!stageName) return null;
   const lower = stageName.trim().toLowerCase();
 
-  for (const dep of DEPARTMENTS) {
+  for (const dep of departments) {
     if (
       dep.name.toLowerCase() === lower ||
       dep.shortName.toLowerCase() === lower ||

@@ -41,6 +41,9 @@ export type StageDto = {
   name: string;
   position: number;
   kind: "open" | "won" | "lost";
+  assignedName?: string | null;
+  assignedEmail?: string | null;
+  badgeColor?: string | null;
 };
 
 export type ContactDto = {

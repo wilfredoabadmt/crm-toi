@@ -2,6 +2,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { getDepartmentByStageName } from "@/lib/departments";
+import { ensureDepartmentStages, getResolvedDepartments } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +11,10 @@ export const dynamic = "force-dynamic";
 export const GET = withAuth(async (session) => {
   const db = getDb();
 
-  const stages = await db
-    .select()
-    .from(schema.pipelineStage)
-    .where(scoped(schema.pipelineStage.organizationId, session.organizationId))
-    .orderBy(asc(schema.pipelineStage.position));
+  const [stages, departments] = await Promise.all([
+    ensureDepartmentStages(session.organizationId),
+    getResolvedDepartments(session.organizationId),
+  ]);
 
   const leads = await db
     .select({
@@ -34,12 +35,18 @@ export const GET = withAuth(async (session) => {
     .orderBy(asc(schema.lead.position));
 
   return Response.json({
-    stages: stages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      position: s.position,
-      kind: s.kind,
-    })),
+    stages: stages.map((s) => {
+      const dep = getDepartmentByStageName(s.name, departments);
+      return {
+        id: s.id,
+        name: s.name,
+        position: s.position,
+        kind: s.kind,
+        assignedName: dep?.assignedName ?? null,
+        assignedEmail: dep?.assignedEmail ?? null,
+        badgeColor: dep?.badgeColor ?? null,
+      };
+    }),
     leads: leads.map((r) => ({
       id: r.lead.id,
       stageId: r.lead.stageId,

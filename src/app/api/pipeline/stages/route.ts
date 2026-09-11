@@ -5,13 +5,30 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 
-import { ensureDepartmentStages } from "@/server/departments";
+import { getDepartmentByStageName } from "@/lib/departments";
+import { ensureDepartmentStages, getResolvedDepartments } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async (session) => {
-  const stages = await ensureDepartmentStages(session.organizationId);
-  return Response.json({ stages });
+  const [stages, departments] = await Promise.all([
+    ensureDepartmentStages(session.organizationId),
+    getResolvedDepartments(session.organizationId),
+  ]);
+  return Response.json({
+    stages: stages.map((s) => {
+      const dep = getDepartmentByStageName(s.name, departments);
+      return {
+        id: s.id,
+        name: s.name,
+        position: s.position,
+        kind: s.kind,
+        assignedName: dep?.assignedName ?? null,
+        assignedEmail: dep?.assignedEmail ?? null,
+        badgeColor: dep?.badgeColor ?? null,
+      };
+    }),
+  });
 });
 
 const createSchema = z.object({

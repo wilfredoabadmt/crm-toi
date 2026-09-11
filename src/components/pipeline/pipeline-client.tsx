@@ -105,7 +105,13 @@ export function PipelineClient() {
             ))}
           </div>
           <DragOverlay>
-            {activeLead ? <LeadCard lead={activeLead} overlay /> : null}
+            {activeLead ? (
+              <LeadCard
+                lead={activeLead}
+                stage={stages.find((s) => s.id === activeLead.stageId)}
+                overlay
+              />
+            ) : null}
           </DragOverlay>
         </DndContext>
       </div>
@@ -123,6 +129,8 @@ export function PipelineClient() {
 
 function StageColumn({ stage, leads }: { stage: StageDto; leads: BoardLead[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const color = stage.badgeColor ?? "#9ca3af";
+
   return (
     <div
       ref={setNodeRef}
@@ -131,28 +139,65 @@ function StageColumn({ stage, leads }: { stage: StageDto; leads: BoardLead[] }) 
         isOver && "ring-2 ring-primary/60"
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-sm font-semibold">
-          {stage.kind === "won" && <Trophy className="h-3.5 w-3.5 text-primary" />}
-          {stage.kind === "lost" && (
-            <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-          {stage.name}
-        </span>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-          {leads.length}
-        </span>
+      <div className="border-b px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold truncate">
+            {stage.kind === "won" && <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" />}
+            {stage.kind === "lost" && (
+              <XCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="truncate">{stage.name}</span>
+          </span>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground shrink-0 font-medium">
+            {leads.length}
+          </span>
+        </div>
+
+        {stage.assignedName && (
+          <div
+            className="mt-2 flex items-center justify-between gap-1.5 rounded-md border px-2 py-1 text-xs"
+            style={{
+              borderColor: `${color}35`,
+              backgroundColor: `${color}12`,
+            }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-xs"
+                style={{ backgroundColor: color }}
+              >
+                {stage.assignedName.charAt(0)}
+              </span>
+              <span
+                className="truncate font-semibold text-[11.5px]"
+                style={{ color }}
+              >
+                {stage.assignedName}
+              </span>
+            </div>
+            <span
+              className="rounded px-1.5 py-0.2 text-[9.5px] font-semibold shrink-0"
+              style={{
+                backgroundColor: `${color}22`,
+                color: color,
+              }}
+            >
+              Responsable
+            </span>
+          </div>
+        )}
       </div>
+
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
         {leads.map((lead) => (
-          <DraggableLead key={lead.id} lead={lead} />
+          <DraggableLead key={lead.id} lead={lead} stage={stage} />
         ))}
       </div>
     </div>
   );
 }
 
-function DraggableLead({ lead }: { lead: BoardLead }) {
+function DraggableLead({ lead, stage }: { lead: BoardLead; stage?: StageDto }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
   });
@@ -163,16 +208,24 @@ function DraggableLead({ lead }: { lead: BoardLead }) {
       {...attributes}
       className={cn(isDragging && "opacity-40")}
     >
-      <LeadCard lead={lead} />
+      <LeadCard lead={lead} stage={stage} />
     </div>
   );
 }
 
-function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolean }) {
+function LeadCard({
+  lead,
+  stage,
+  overlay = false,
+}: {
+  lead: BoardLead;
+  stage?: StageDto;
+  overlay?: boolean;
+}) {
   return (
     <div
       className={cn(
-        "cursor-grab rounded-md border bg-card p-3 shadow-sm",
+        "cursor-grab rounded-md border bg-card p-3 shadow-sm transition-all hover:border-brand/40",
         overlay && "rotate-2 shadow-xl"
       )}
     >
@@ -197,6 +250,18 @@ function LeadCard({ lead, overlay = false }: { lead: BoardLead; overlay?: boolea
           </Link>
         )}
       </div>
+
+      {stage?.assignedName && (
+        <div className="mt-2 flex items-center gap-1.5 border-t border-border/50 pt-1.5 text-[10.5px] text-muted-foreground">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: stage.badgeColor ?? "#9ca3af" }}
+          />
+          <span className="truncate">
+            Atiende: <strong className="font-semibold text-foreground">{stage.assignedName}</strong>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
