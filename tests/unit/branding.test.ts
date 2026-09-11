@@ -34,14 +34,14 @@ describe("white-label: acento", () => {
 });
 
 describe("white-label: normalización", () => {
-  it("nombre vacío o nulo → default 'Vocero'; se recorta a 30", () => {
-    expect(normalizeBranding(null).name).toBe("Vocero");
-    expect(normalizeBranding({ name: "   " }).name).toBe("Vocero");
+  it("nombre vacío o nulo → default 'TOI'; se recorta a 30", () => {
+    expect(normalizeBranding(null).name).toBe("TOI");
+    expect(normalizeBranding({ name: "   " }).name).toBe("TOI");
     expect(normalizeBranding({ name: "x".repeat(50) }).name).toHaveLength(30);
   });
 
   it("acento inválido → default", () => {
-    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#3f5972");
+    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#1a75ff");
     expect(normalizeBranding({ accent: "#3F6B66" }).accent).toBe("#3f6b66");
   });
 });

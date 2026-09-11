@@ -5,15 +5,12 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 
+import { ensureDepartmentStages } from "@/server/departments";
+
 export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async (session) => {
-  const db = getDb();
-  const stages = await db
-    .select()
-    .from(schema.pipelineStage)
-    .where(scoped(schema.pipelineStage.organizationId, session.organizationId))
-    .orderBy(asc(schema.pipelineStage.position));
+  const stages = await ensureDepartmentStages(session.organizationId);
   return Response.json({ stages });
 });
 

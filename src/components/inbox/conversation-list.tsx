@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { DEPARTMENTS, getDepartmentByStageName } from "@/lib/departments";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
@@ -64,7 +65,7 @@ export function ConversationList({
   onSeeded: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<string>("all");
 
   const loading = conversationsProp === null;
   const conversations = conversationsProp ?? [];
@@ -78,8 +79,24 @@ export function ConversationList({
       )
     : conversations;
   const unreadCount = searched.filter((c) => c.unreadCount > 0).length;
+
+  const filterTabs = [
+    { id: "all", label: "Todas", count: searched.length },
+    { id: "unread", label: "No leídas", count: unreadCount },
+    ...DEPARTMENTS.map((d) => ({
+      id: d.id,
+      label: `${d.shortName} (${d.assignedName})`,
+      count: searched.filter((c) => getDepartmentByStageName(c.stageName)?.id === d.id).length,
+      color: d.badgeColor,
+    })),
+  ];
+
   const visible =
-    filter === "unread" ? searched.filter((c) => c.unreadCount > 0) : searched;
+    filter === "all"
+      ? searched
+      : filter === "unread"
+        ? searched.filter((c) => c.unreadCount > 0)
+        : searched.filter((c) => getDepartmentByStageName(c.stageName)?.id === filter);
 
   return (
     <div className="flex h-full flex-col">
@@ -99,34 +116,32 @@ export function ConversationList({
         </div>
       </header>
 
-      <div className="flex gap-1.5 border-b px-4 py-2.5">
-        {(
-          [
-            { id: "all", label: "Todas", count: searched.length },
-            { id: "unread", label: "No leídas", count: unreadCount },
-          ] as const
-        ).map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full border px-3 py-[5px] text-[12.5px] font-medium transition-colors",
-              filter === f.id
-                ? "border-brand bg-brand text-white"
-                : "bg-background text-text-2 hover:bg-accent"
-            )}
-          >
-            {f.label}
-            <span
+      <div className="flex gap-1.5 overflow-x-auto border-b px-4 py-2.5 scrollbar-none">
+        {filterTabs.map((f) => {
+          const isSelected = filter === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
               className={cn(
-                "rounded-full px-1.5 text-[11px]",
-                filter === f.id ? "bg-white/20" : "bg-secondary text-text-3"
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-[5px] text-[12px] font-medium transition-colors",
+                isSelected
+                  ? "border-brand bg-brand text-white"
+                  : "bg-background text-text-2 hover:bg-accent"
               )}
             >
-              {f.count}
-            </span>
-          </button>
-        ))}
+              {f.label}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-[10.5px]",
+                  isSelected ? "bg-white/20 text-white" : "bg-secondary text-text-3"
+                )}
+              >
+                {f.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -195,20 +210,34 @@ export function ConversationList({
                           </span>
                         )}
                       </span>
-                      <span className="mt-1.5 flex items-center gap-1.5">
-                        {c.stageName && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border bg-secondary px-2 py-0.5 text-[11px] text-text-2">
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {c.stageName && (() => {
+                          const dep = getDepartmentByStageName(c.stageName);
+                          return (
                             <span
-                              className="h-[7px] w-[7px] rounded-full"
-                              style={{
-                                background: STAGE_DOT[c.stageName] ?? "#9ca3af",
-                              }}
-                            />
-                            {c.stageName}
-                          </span>
-                        )}
+                              className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                              style={
+                                dep
+                                  ? {
+                                      borderColor: `${dep.badgeColor}40`,
+                                      backgroundColor: `${dep.badgeColor}18`,
+                                      color: dep.badgeColor,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <span
+                                className="h-[7px] w-[7px] rounded-full"
+                                style={{
+                                  background: dep ? dep.badgeColor : (STAGE_DOT[c.stageName] ?? "#9ca3af"),
+                                }}
+                              />
+                              {dep ? `${dep.shortName} · ${dep.assignedName}` : c.stageName}
+                            </span>
+                          );
+                        })()}
                         {c.handoffAt && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-[#ece2cf] bg-[#faf7f0] px-2 py-0.5 text-[11px] text-[#8a6d3b]">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
                             <UserRound className="h-3 w-3" strokeWidth={1.7} />
                             Atención humana
                           </span>

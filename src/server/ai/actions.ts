@@ -43,7 +43,14 @@ export function resolveStage(
   const exact = stages.find((s) => s.name === requested.trim());
   if (exact) return exact;
   const lower = requested.trim().toLowerCase();
-  return stages.find((s) => s.name.toLowerCase() === lower) ?? null;
+  const direct = stages.find((s) => s.name.toLowerCase() === lower);
+  if (direct) return direct;
+  return (
+    stages.find((s) => {
+      const sLower = s.name.toLowerCase();
+      return sLower.includes(lower) || lower.includes(sLower);
+    }) ?? null
+  );
 }
 
 /** Degrada una move_stage sin etapa válida (FR-021 / contrato ai.md). */

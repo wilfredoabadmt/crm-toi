@@ -10,6 +10,8 @@ import { AgentAction, degradeAction, resolveStage, type AgentActionType } from "
 import { matchesHandoffIntent } from "@/server/ai/handoff";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { getAgentMediaByOrg } from "@/server/ai/media";
+import { getDepartmentByStageName } from "@/lib/departments";
+import { ensureDepartmentStages } from "@/server/departments";
 
 /**
  * Turno del agente (FR-021..FR-025).
@@ -137,11 +139,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .from(schema.kbEntry)
     .where(eq(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
-  const stages = await db
-    .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
-    .from(schema.pipelineStage)
-    .where(eq(schema.pipelineStage.organizationId, organizationId))
-    .orderBy(asc(schema.pipelineStage.position));
+  const stages = await ensureDepartmentStages(organizationId);
   const media = await getAgentMediaByOrg(organizationId);
 
   let locationContext = "";
@@ -239,6 +237,12 @@ Gracias por compartir tu ubicación. Por el momento no contamos con cobertura en
       });
       if (action.reply) {
         await deliverReply(conversation, action.reply);
+      }
+      // Si la etapa destino es un departamento oficial de atención humana, activar handoff
+      // para que el asesor físico (Alvaro, Janneth, Andrea, Wilfredo) atienda de inmediato
+      const isDep = getDepartmentByStageName(stage.name);
+      if (isDep) {
+        await applyHandoff(conversationId, organizationId, "modelo");
       }
       return;
     }

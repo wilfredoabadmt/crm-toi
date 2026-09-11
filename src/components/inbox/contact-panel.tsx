@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
+import { getDepartmentByStageName } from "@/lib/departments";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,6 +116,10 @@ export function ContactPanel({
   }
 
   const currentIndex = stages.findIndex((s) => s.id === currentStageId);
+  const currentStage =
+    stages.find((s) => s.id === currentStageId) ??
+    (conversation.stageName ? { name: conversation.stageName } : null);
+  const currentDepartment = getDepartmentByStageName(currentStage?.name);
 
   return (
     <div className="flex h-full flex-col">
@@ -235,6 +240,59 @@ export function ContactPanel({
           </div>
         </section>
 
+        {/* Departamento y Asesor Asignado */}
+        {currentDepartment && (
+          <section className="border-b p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-3">
+              Departamento y Asesor Asignado
+            </p>
+            <div
+              className="rounded-lg border p-3"
+              style={{
+                borderColor: `${currentDepartment.badgeColor}40`,
+                backgroundColor: `${currentDepartment.badgeColor}12`,
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="text-xs font-bold"
+                  style={{ color: currentDepartment.badgeColor }}
+                >
+                  {currentDepartment.name}
+                </span>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: `${currentDepartment.badgeColor}22`,
+                    color: currentDepartment.badgeColor,
+                  }}
+                >
+                  {currentDepartment.shortName}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2.5">
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm"
+                  style={{ backgroundColor: currentDepartment.badgeColor }}
+                >
+                  {currentDepartment.assignedName.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold">
+                    {currentDepartment.assignedName}
+                  </p>
+                  <p className="truncate text-xs text-text-3">
+                    {currentDepartment.assignedEmail}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-text-3">
+                {currentDepartment.description}
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (
           <section className="border-b p-4">
@@ -245,6 +303,7 @@ export function ContactPanel({
               {stages.map((s, i) => {
                 const done = currentIndex >= 0 && i < currentIndex;
                 const current = s.id === currentStageId;
+                const dep = getDepartmentByStageName(s.name);
                 return (
                   <li key={s.id} className="relative flex gap-3 pb-4 last:pb-0">
                     {i < stages.length - 1 && (
@@ -270,11 +329,22 @@ export function ContactPanel({
                     <button
                       onClick={() => void moveToStage(s.id)}
                       className={cn(
-                        "text-left text-[13px]",
+                        "flex flex-wrap items-center gap-1.5 text-left text-[13px]",
                         current ? "font-[650] text-brand-text" : "text-text-2 hover:text-foreground"
                       )}
                     >
-                      {s.name}
+                      <span>{s.name}</span>
+                      {dep && (
+                        <span
+                          className="rounded-full px-1.5 py-0.2 text-[10px] font-medium"
+                          style={{
+                            backgroundColor: `${dep.badgeColor}20`,
+                            color: dep.badgeColor,
+                          }}
+                        >
+                          {dep.assignedName}
+                        </span>
+                      )}
                     </button>
                   </li>
                 );

@@ -1,4 +1,5 @@
 import type { schema } from "@/lib/db";
+import { buildDepartmentRoutingPrompt } from "@/lib/departments";
 import { getSystemTimeContext, interpolateTimeVariables } from "@/server/ai/time";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
@@ -95,6 +96,7 @@ Usa esta información temporal para evaluar con precisión cualquier instrucció
       ? `Reglas de escalado a humano:\n${escalationRules}`
       : null,
     greeting ? `Saludo sugerido para conversaciones nuevas: ${greeting}` : null,
+    buildDepartmentRoutingPrompt(),
     `CONOCIMIENTO DEL NEGOCIO (tu única fuente de verdad; si algo no está aquí, NO lo inventes — di que lo confirmarás con el equipo o escala):\n${renderKb(input.kb)}`,
     `CATÁLOGO DE IMÁGENES Y RECURSOS OFICIALES ORGANIZADOS POR CATEGORÍA:\n${renderMediaCatalog(input.media)}`,
     `Etapas del pipeline disponibles: ${stageNames}`,
@@ -109,9 +111,10 @@ Usa esta información temporal para evaluar con precisión cualquier instrucció
       "Reglas duras:",
       "- Si la consulta del cliente cumple exactamente con la Regla de entrega de alguna imagen (comunicados, catálogo, ubicación, pagos, etc.), responde con la acción send_image usando la imageUrl correspondiente.",
       "- NUNCA inventes ni alteres URLs de imágenes: usa estrictamente las URLs del catálogo oficial.",
-      "- Si el cliente pide hablar con una persona/humano/asesor → handoff.",
+      "- DERIVACIÓN POR DEPARTAMENTO: Si el cliente consulta sobre temas técnicos (soporte/fallas/corte/lento/router), administrativos (pagos/cobranza/factura/prórroga), comerciales (nuevo plan/precios/ventas) o gerenciales, usa acción move_stage con el nombre del departamento oficial correspondiente y el mensaje de confirmación de transferencia en 'reply'.",
+      "- Si el cliente pide hablar con una persona/humano/asesor en general sin especificar área → handoff.",
       "- Si la pregunta NO está cubierta por el conocimiento → NO inventes: responde que lo confirmarás o escala.",
-      "- Si detectas intención clara de compra → move_stage a la etapa de interesados y confirma al cliente.",
+      "- Si detectas intención clara de compra → move_stage a 'Departamento comercial' y confirma al cliente.",
       "- JSON puro, sin markdown ni texto adicional.",
     ].join("\n"),
   ]
