@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getAuth, runInternalSignup } from "@/lib/auth";
@@ -80,4 +80,49 @@ export const POST = withAuth(async (session, req: Request) => {
     .onConflictDoNothing();
 
   return Response.json({ ok: true }, { status: 201 });
+});
+
+/** Baja de miembro de equipo (owner only): revoca membresía y sesiones activas. */
+export const DELETE = withAuth(async (session, req: Request) => {
+  if (session.role !== "owner") {
+    return apiError(403, "forbidden", "Solo el propietario puede eliminar miembros");
+  }
+  const url = new URL(req.url);
+  const memberId = url.searchParams.get("id");
+  if (!memberId) {
+    return apiError(400, "invalid", "Falta el identificador del miembro");
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: schema.member.id,
+      userId: schema.member.userId,
+      role: schema.member.role,
+    })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.id, memberId),
+        scoped(schema.member.organizationId, session.organizationId)
+      )
+    )
+    .limit(1);
+
+  const target = rows[0];
+  if (!target) {
+    return apiError(404, "not_found", "Miembro no encontrado en la organización");
+  }
+
+  if (target.role === "owner" || target.userId === session.userId) {
+    return apiError(400, "invalid", "No puedes eliminar al propietario de la organización");
+  }
+
+  // 1. Eliminar la membresía de la organización
+  await db.delete(schema.member).where(eq(schema.member.id, memberId));
+
+  // 2. Revocar de inmediato las sesiones activas del usuario
+  await db.delete(schema.session).where(eq(schema.session.userId, target.userId));
+
+  return Response.json({ ok: true });
 });

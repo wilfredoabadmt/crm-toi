@@ -1,5 +1,5 @@
 import type { schema } from "@/lib/db";
-import { buildDepartmentRoutingPrompt } from "@/lib/departments";
+import { buildDepartmentRoutingPrompt, type DepartmentConfig } from "@/lib/departments";
 import { getSystemTimeContext, interpolateTimeVariables } from "@/server/ai/time";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
@@ -64,6 +64,7 @@ export function buildAgentSystemPrompt(input: {
   kb: KbEntry[];
   stages: { name: string }[];
   media?: AgentMediaItem[];
+  departments?: DepartmentConfig[];
   now?: Date;
   timezone?: string;
 }): string {
@@ -96,7 +97,7 @@ Usa esta información temporal para evaluar con precisión cualquier instrucció
       ? `Reglas de escalado a humano:\n${escalationRules}`
       : null,
     greeting ? `Saludo sugerido para conversaciones nuevas: ${greeting}` : null,
-    buildDepartmentRoutingPrompt(),
+    buildDepartmentRoutingPrompt(input.departments),
     `CONOCIMIENTO DEL NEGOCIO (tu única fuente de verdad; si algo no está aquí, NO lo inventes — di que lo confirmarás con el equipo o escala):\n${renderKb(input.kb)}`,
     `CATÁLOGO DE IMÁGENES Y RECURSOS OFICIALES ORGANIZADOS POR CATEGORÍA:\n${renderMediaCatalog(input.media)}`,
     `Etapas del pipeline disponibles: ${stageNames}`,

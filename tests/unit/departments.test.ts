@@ -81,4 +81,20 @@ describe("Configuración y utilidades de Departamentos", () => {
     expect(resolveStage("Gerencia", stages)?.id).toBe("s5");
     expect(resolveStage("Etapa inexistente", stages)).toBeNull();
   });
+
+  it("buildDepartmentRoutingPrompt debe reflejar reasignaciones dinámicas de responsables", () => {
+    const customDeps = DEPARTMENTS.map((d) => {
+      if (d.id === "tecnico") {
+        return { ...d, assignedName: "Carlos", assignedEmail: "carlos@toi.bo" };
+      }
+      return d;
+    });
+
+    const prompt = buildDepartmentRoutingPrompt(customDeps);
+    expect(prompt).toContain("Carlos");
+    expect(prompt).not.toContain("Alvaro");
+    expect(prompt).toContain("Janneth");
+    expect(prompt).toContain("Andrea");
+    expect(prompt).toContain("Wilfredo Abad");
+  });
 });

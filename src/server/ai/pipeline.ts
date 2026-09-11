@@ -11,7 +11,7 @@ import { matchesHandoffIntent } from "@/server/ai/handoff";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { getAgentMediaByOrg } from "@/server/ai/media";
 import { getDepartmentByStageName } from "@/lib/departments";
-import { ensureDepartmentStages } from "@/server/departments";
+import { ensureDepartmentStages, getResolvedDepartments } from "@/server/departments";
 
 /**
  * Turno del agente (FR-021..FR-025).
@@ -139,7 +139,10 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .from(schema.kbEntry)
     .where(eq(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
-  const stages = await ensureDepartmentStages(organizationId);
+  const [stages, departments] = await Promise.all([
+    ensureDepartmentStages(organizationId),
+    getResolvedDepartments(organizationId),
+  ]);
   const media = await getAgentMediaByOrg(organizationId);
 
   let locationContext = "";
@@ -192,7 +195,13 @@ Gracias por compartir tu ubicación. Por el momento no contamos con cobertura en
     locationContext = "";
   }
 
-  const basePrompt = buildAgentSystemPrompt({ profile, kb, stages, media });
+  const basePrompt = buildAgentSystemPrompt({
+    profile,
+    kb,
+    stages,
+    media,
+    departments,
+  });
   const finalSystemPrompt = `${basePrompt}${locationContext}`;
 
   const messages: ChatMessage[] = [

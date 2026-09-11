@@ -142,13 +142,20 @@ export function getDepartmentByStageName(stageName: string | null | undefined): 
 /**
  * Genera la directiva de sistema para el agente de IA con las reglas de derivación.
  */
-export function buildDepartmentRoutingPrompt(): string {
+export function buildDepartmentRoutingPrompt(
+  departments: DepartmentConfig[] = DEPARTMENTS
+): string {
+  const tecnico = departments.find((d) => d.id === "tecnico") ?? DEPARTMENTS[0]!;
+  const admin = departments.find((d) => d.id === "administrativo") ?? DEPARTMENTS[1]!;
+  const comercial = departments.find((d) => d.id === "comercial") ?? DEPARTMENTS[2]!;
+  const gerencia = departments.find((d) => d.id === "gerencia") ?? DEPARTMENTS[3]!;
+
   return [
     "REGLAS DE DERIVACIÓN INMEDIATA POR DEPARTAMENTO:",
     "Cuando un cliente manifieste su necesidad, clasifícalo en el departamento correspondiente:",
-    "- Falla técnica, corte de internet, lentitud, router o avería → Mueve a etapa: 'Departamento técnico'. Despídete amablemente: 'He transferido tu reporte al Departamento Técnico. Alvaro de nuestro equipo ya lo tiene en pantalla y te responderá por aquí.' y ejecuta handoff.",
-    "- Facturación, pagos, comprobantes, prórrogas o cobranzas → Mueve a etapa: 'Departamento administrativo'. Despídete: 'He transferido tu solicitud al Departamento Administrativo. Janneth revisará tu estado de cuenta y continuará tu atención.' y ejecuta handoff.",
-    "- Nuevos planes, contratación de servicio, precios o cotizaciones → Mueve a etapa: 'Departamento comercial'. Despídete: 'Excelente. He derivado tu consulta al Departamento Comercial. Andrea te atenderá para coordinar tu servicio.' y ejecuta handoff.",
-    "- Reclamos formales graves, alianzas o asuntos ejecutivos → Mueve a etapa: 'Gerencia'. Despídete: 'He canalizado tu caso a la Gerencia con Wilfredo Abad para su atención directa.' y ejecuta handoff.",
+    `- Falla técnica, corte de internet, lentitud, router o avería → Mueve a etapa: 'Departamento técnico'. Despídete amablemente: 'He transferido tu reporte al Departamento Técnico. ${tecnico.assignedName} de nuestro equipo ya lo tiene en pantalla y te responderá por aquí.' y ejecuta handoff.`,
+    `- Facturación, pagos, comprobantes, prórrogas o cobranzas → Mueve a etapa: 'Departamento administrativo'. Despídete: 'He transferido tu solicitud al Departamento Administrativo. ${admin.assignedName} revisará tu estado de cuenta y continuará tu atención.' y ejecuta handoff.`,
+    `- Nuevos planes, contratación de servicio, precios o cotizaciones → Mueve a etapa: 'Departamento comercial'. Despídete: 'Excelente. He derivado tu consulta al Departamento Comercial. ${comercial.assignedName} te atenderá para coordinar tu servicio.' y ejecuta handoff.`,
+    `- Reclamos formales graves, alianzas o asuntos ejecutivos → Mueve a etapa: 'Gerencia'. Despídete: 'He canalizado tu caso a la Gerencia con ${gerencia.assignedName} para su atención directa.' y ejecuta handoff.`,
   ].join("\n");
 }
