@@ -175,6 +175,9 @@ function ProfileSection({
             value={form.instructions ?? ""}
             onChange={(e) => setForm({ ...form, instructions: e.target.value })}
           />
+          <p className="text-xs text-muted-foreground">
+            💡 El agente conoce en tiempo real la <strong>hora, fecha y día actual</strong>. Puedes darle reglas de horario (ej: <em>&quot;De lunes a viernes de 8:00 a 18:00 atiende normal; fuera de horario avisa que responderemos a primera hora&quot;</em>) o usar variables opcionales: <code>{"{{hora}}"}</code>, <code>{"{{dia}}"}</code>, <code>{"{{fecha}}"}</code>.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="agent-escalation">Reglas de escalado</Label>
@@ -194,6 +197,9 @@ function ProfileSection({
             value={form.greeting ?? ""}
             onChange={(e) => setForm({ ...form, greeting: e.target.value })}
           />
+          <p className="text-xs text-muted-foreground">
+            Puedes usar <code>{"{{hora}}"}</code>, <code>{"{{dia}}"}</code> o dejar que la IA salude según el momento del día.
+          </p>
         </div>
         <Button onClick={() => void onSave(form)}>Guardar comportamiento</Button>
       </CardContent>

@@ -1,4 +1,5 @@
 import type { schema } from "@/lib/db";
+import { getSystemTimeContext, interpolateTimeVariables } from "@/server/ai/time";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
 type KbEntry = typeof schema.kbEntry.$inferSelect;
@@ -55,24 +56,45 @@ export function renderMediaCatalog(mediaItems?: AgentMediaItem[]): string {
 }
 
 /**
- * System prompt del agente (v1: inyecta el KB completo y el catálogo de imágenes).
+ * System prompt del agente (v1: inyecta el KB completo, catálogo de imágenes y contexto temporal en tiempo real).
  */
 export function buildAgentSystemPrompt(input: {
   profile: AgentProfile;
   kb: KbEntry[];
   stages: { name: string }[];
   media?: AgentMediaItem[];
+  now?: Date;
+  timezone?: string;
 }): string {
   const { profile } = input;
   const stageNames = input.stages.map((s) => s.name).join(" | ");
+  const timeCtx = getSystemTimeContext(input.now, input.timezone);
+
+  const instructions = profile.instructions
+    ? interpolateTimeVariables(profile.instructions, timeCtx)
+    : null;
+  const greeting = profile.greeting
+    ? interpolateTimeVariables(profile.greeting, timeCtx)
+    : null;
+  const escalationRules = profile.escalationRules
+    ? interpolateTimeVariables(profile.escalationRules, timeCtx)
+    : null;
+
   return [
     `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
+    `[CONTEXTO TEMPORAL EN TIEMPO REAL]
+- Fecha y hora actual del sistema: ${timeCtx.formattedDateTime}
+- Día de la semana: ${timeCtx.dayOfWeek}
+- Hora actual (24h): ${timeCtx.time24}
+- Hora actual (12h): ${timeCtx.time12}
+- Zona horaria de referencia: ${timeCtx.timezone}
+Usa esta información temporal para evaluar con precisión cualquier instrucción o regla de horario de atención (por ejemplo: si es de noche, fuera de horario comercial, fin de semana, etc.).`,
     profile.tone ? `Tono: ${profile.tone}` : null,
-    profile.instructions ? `Instrucciones del negocio:\n${profile.instructions}` : null,
-    profile.escalationRules
-      ? `Reglas de escalado a humano:\n${profile.escalationRules}`
+    instructions ? `Instrucciones del negocio:\n${instructions}` : null,
+    escalationRules
+      ? `Reglas de escalado a humano:\n${escalationRules}`
       : null,
-    profile.greeting ? `Saludo sugerido para conversaciones nuevas: ${profile.greeting}` : null,
+    greeting ? `Saludo sugerido para conversaciones nuevas: ${greeting}` : null,
     `CONOCIMIENTO DEL NEGOCIO (tu única fuente de verdad; si algo no está aquí, NO lo inventes — di que lo confirmarás con el equipo o escala):\n${renderKb(input.kb)}`,
     `CATÁLOGO DE IMÁGENES Y RECURSOS OFICIALES ORGANIZADOS POR CATEGORÍA:\n${renderMediaCatalog(input.media)}`,
     `Etapas del pipeline disponibles: ${stageNames}`,

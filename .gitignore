@@ -30,3 +30,6 @@ inbox-logged-in.png
 Thumbs.db
 
 prod-*.png
+*_dump*.json
+PR_BODY.md
+notebooklm-mcp/

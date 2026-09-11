@@ -126,9 +126,8 @@ export function parseCoordinatesOrLink(input: string): {
   const mapsShortUrlMatch = clean.match(mapsShortUrlRegex);
   if (mapsShortUrlMatch && mapsShortUrlMatch[1]) {
     const hash = mapsShortUrlMatch[1];
-    // Verificar si el hash corresponde a una URL de Google Maps que ya ha
-    // sido resuelta por otro servicio externo
-    return { lat: null, lng: null, is_gmaps_short_url: true, gmaps_short_hash: hash };
+    // URL acortada sin coordenadas directas inmediatas
+    return null;
   }
 
   return null;
