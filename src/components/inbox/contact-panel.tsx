@@ -119,7 +119,15 @@ export function ContactPanel({
   const currentStage =
     stages.find((s) => s.id === currentStageId) ??
     (conversation.stageName ? { name: conversation.stageName } : null);
-  const currentDepartment = getDepartmentByStageName(currentStage?.name);
+  const depBase = getDepartmentByStageName(currentStage?.name);
+  const currentDepartment = depBase
+    ? {
+        ...depBase,
+        assignedName: (currentStage as StageDto)?.assignedName || depBase.assignedName,
+        assignedEmail: (currentStage as StageDto)?.assignedEmail || depBase.assignedEmail,
+        badgeColor: (currentStage as StageDto)?.badgeColor || depBase.badgeColor,
+      }
+    : null;
 
   return (
     <div className="flex h-full flex-col">

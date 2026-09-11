@@ -14,6 +14,13 @@ const patchSchema = z.object({
 });
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
+  if (session.role !== "owner") {
+    return apiError(
+      403,
+      "forbidden",
+      "Solo el propietario puede modificar etapas del pipeline"
+    );
+  }
   const { id } = await ctx.params;
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
@@ -40,6 +47,13 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 });
 
 export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
+  if (session.role !== "owner") {
+    return apiError(
+      403,
+      "forbidden",
+      "Solo el propietario puede eliminar etapas del pipeline"
+    );
+  }
   const { id } = await ctx.params;
   const url = new URL(req.url);
   const moveTo = url.searchParams.get("moveTo");

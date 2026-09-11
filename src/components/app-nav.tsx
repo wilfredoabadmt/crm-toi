@@ -118,24 +118,26 @@ export function AppNav({
 
       <div className="flex-1" />
 
-      <Link
-        href="/settings"
-        className={cn(
-          "flex items-center gap-[11px] rounded-sm px-2.5 py-2 text-sm font-medium transition-colors",
-          pathname.startsWith("/settings")
-            ? "bg-brand-tint font-semibold text-brand-text"
-            : "text-text-2 hover:bg-accent"
-        )}
-      >
-        <Settings
+      {role === "owner" && (
+        <Link
+          href="/settings"
           className={cn(
-            "h-[18px] w-[18px]",
-            pathname.startsWith("/settings") ? "text-brand" : "text-text-3"
+            "flex items-center gap-[11px] rounded-sm px-2.5 py-2 text-sm font-medium transition-colors",
+            pathname.startsWith("/settings")
+              ? "bg-brand-tint font-semibold text-brand-text"
+              : "text-text-2 hover:bg-accent"
           )}
-          strokeWidth={1.7}
-        />
-        Ajustes
-      </Link>
+        >
+          <Settings
+            className={cn(
+              "h-[18px] w-[18px]",
+              pathname.startsWith("/settings") ? "text-brand" : "text-text-3"
+            )}
+            strokeWidth={1.7}
+          />
+          Ajustes
+        </Link>
+      )}
 
       <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-text">

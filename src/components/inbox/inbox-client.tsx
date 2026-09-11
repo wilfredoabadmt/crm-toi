@@ -12,7 +12,17 @@ import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 
-export function InboxClient() {
+export type CurrentUserProp = {
+  role: string;
+  email: string;
+  name: string;
+};
+
+export function InboxClient({
+  currentUser,
+}: {
+  currentUser?: CurrentUserProp;
+} = {}) {
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
     null
   );
@@ -164,6 +174,7 @@ export function InboxClient() {
           selectedId={selectedId}
           onSelect={select}
           onSeeded={() => void refetchConversations()}
+          currentUser={currentUser}
         />
       </section>
 

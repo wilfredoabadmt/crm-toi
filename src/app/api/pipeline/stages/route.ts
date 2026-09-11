@@ -1,6 +1,6 @@
 import { asc, sql } from "drizzle-orm";
 import { z } from "zod";
-import { parseBody, withAuth } from "@/lib/api";
+import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -36,6 +36,13 @@ const createSchema = z.object({
 });
 
 export const POST = withAuth(async (session, req: Request) => {
+  if (session.role !== "owner") {
+    return apiError(
+      403,
+      "forbidden",
+      "Solo el propietario puede crear etapas en el pipeline"
+    );
+  }
   const body = await parseBody(req, createSchema);
   if (!body.ok) return body.response;
 

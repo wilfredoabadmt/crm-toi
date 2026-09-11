@@ -30,7 +30,7 @@ export type BoardLead = {
   conversationId: string | null;
 };
 
-export function PipelineClient() {
+export function PipelineClient({ role = "member" }: { role?: string }) {
   const [stages, setStages] = useState<StageDto[]>([]);
   const [leads, setLeads] = useState<BoardLead[]>([]);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
@@ -74,7 +74,7 @@ export function PipelineClient() {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ stageId: overStage, position }),
-    }).catch(() => null);
+    });
     void refetch();
   }
 
@@ -82,9 +82,11 @@ export function PipelineClient() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
         <h2 className="font-semibold">Pipeline</h2>
-        <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
-          <Settings2 className="h-4 w-4" /> Gestionar etapas
-        </Button>
+        {role === "owner" && (
+          <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
+            <Settings2 className="h-4 w-4" /> Gestionar etapas
+          </Button>
+        )}
       </header>
 
       <div className="flex-1 overflow-x-auto p-4">

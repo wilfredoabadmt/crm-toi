@@ -1,8 +1,15 @@
+import { redirect } from "next/navigation";
+import { getSessionOrNull } from "@/lib/auth/session";
 import { SettingsNav } from "@/components/settings/settings-nav";
 
-export default function SettingsLayout({
+export default async function SettingsLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await getSessionOrNull();
+  if (!session || session.role !== "owner") {
+    redirect("/inbox");
+  }
+
   return (
     <div className="flex h-full flex-col">
       <header className="border-b px-6 py-4">

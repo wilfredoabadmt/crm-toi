@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { DEPARTMENTS, getDepartmentByStageName } from "@/lib/departments";
+import { DEPARTMENTS, getDepartmentByStageName, type DepartmentConfig } from "@/lib/departments";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
+import type { CurrentUserProp } from "./inbox-client";
 
 const STAGE_DOT: Record<string, string> = {
   Nuevo: "#9ca3af",
@@ -58,17 +59,58 @@ export function ConversationList({
   selectedId,
   onSelect,
   onSeeded,
+  currentUser,
 }: {
   conversations: ConversationDto[] | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSeeded: () => void;
+  currentUser?: CurrentUserProp;
 }) {
   const [query, setQuery] = useState("");
+  const [departments, setDepartments] = useState<DepartmentConfig[]>(DEPARTMENTS);
   const [filter, setFilter] = useState<string>("all");
+  const [initialFilterSet, setInitialFilterSet] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/departments")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.departments && Array.isArray(data.departments)) {
+          setDepartments(data.departments);
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  const isOwner = currentUser?.role === "owner";
+  const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
+  const myDepartment = departments.find(
+    (d) => d.assignedEmail.trim().toLowerCase() === userEmail
+  );
+
+  // Auto-posicionar al miembro en su departamento al iniciar
+  useEffect(() => {
+    if (!initialFilterSet && departments.length > 0) {
+      if (!isOwner && myDepartment) {
+        setFilter(myDepartment.id);
+      }
+      setInitialFilterSet(true);
+    }
+  }, [initialFilterSet, departments, isOwner, myDepartment]);
 
   const loading = conversationsProp === null;
-  const conversations = conversationsProp ?? [];
+  const rawConversations = conversationsProp ?? [];
+
+  // Si es un miembro con departamento asignado (ej. Comercial),
+  // se enfoca en las conversaciones de su área para privacidad y foco.
+  const conversations =
+    !isOwner && myDepartment
+      ? rawConversations.filter(
+          (c) => getDepartmentByStageName(c.stageName, departments)?.id === myDepartment.id
+        )
+      : rawConversations;
+
   const q = query.trim().toLowerCase();
   const searched = q
     ? conversations.filter(
@@ -80,23 +122,40 @@ export function ConversationList({
     : conversations;
   const unreadCount = searched.filter((c) => c.unreadCount > 0).length;
 
-  const filterTabs = [
-    { id: "all", label: "Todas", count: searched.length },
-    { id: "unread", label: "No leídas", count: unreadCount },
-    ...DEPARTMENTS.map((d) => ({
-      id: d.id,
-      label: `${d.shortName} (${d.assignedName})`,
-      count: searched.filter((c) => getDepartmentByStageName(c.stageName)?.id === d.id).length,
-      color: d.badgeColor,
-    })),
-  ];
+  const filterTabs =
+    !isOwner && myDepartment
+      ? [
+          {
+            id: myDepartment.id,
+            label: `${myDepartment.shortName} (${myDepartment.assignedName})`,
+            count: searched.filter(
+              (c) => getDepartmentByStageName(c.stageName, departments)?.id === myDepartment.id
+            ).length,
+            color: myDepartment.badgeColor,
+          },
+          { id: "unread", label: "No leídas", count: unreadCount },
+        ]
+      : [
+          { id: "all", label: "Todas", count: searched.length },
+          { id: "unread", label: "No leídas", count: unreadCount },
+          ...departments.map((d) => ({
+            id: d.id,
+            label: `${d.shortName} (${d.assignedName})`,
+            count: searched.filter(
+              (c) => getDepartmentByStageName(c.stageName, departments)?.id === d.id
+            ).length,
+            color: d.badgeColor,
+          })),
+        ];
 
   const visible =
     filter === "all"
       ? searched
       : filter === "unread"
         ? searched.filter((c) => c.unreadCount > 0)
-        : searched.filter((c) => getDepartmentByStageName(c.stageName)?.id === filter);
+        : searched.filter(
+            (c) => getDepartmentByStageName(c.stageName, departments)?.id === filter
+          );
 
   return (
     <div className="flex h-full flex-col">
@@ -212,7 +271,7 @@ export function ConversationList({
                       </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {c.stageName && (() => {
-                          const dep = getDepartmentByStageName(c.stageName);
+                          const dep = getDepartmentByStageName(c.stageName, departments);
                           return (
                             <span
                               className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium"
