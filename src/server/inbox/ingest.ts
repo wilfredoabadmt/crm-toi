@@ -123,9 +123,30 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       (c) => c.wa_id === msg.from
     )?.profile?.name;
     let messageText = msg.text?.body ?? null;
+
     if (msg.type === "location" && msg.location) {
       const { latitude, longitude, name, address } = msg.location;
       messageText = `📍 Ubicación compartida: Latitud ${latitude}, Longitud ${longitude}${address ? ` (${address})` : ""}${name ? ` [${name}]` : ""}`;
+    } else if (msg.type === "image" && msg.image) {
+      const caption = msg.image.caption?.trim();
+      messageText = caption
+        ? `[MEDIA:${msg.image.id}] ${caption}`
+        : `[MEDIA:${msg.image.id}]`;
+    } else if (msg.type === "document" && msg.document) {
+      const name = msg.document.filename ?? "documento";
+      const caption = msg.document.caption?.trim();
+      messageText = caption
+        ? `[DOC:${msg.document.id}:${name}] ${caption}`
+        : `[DOC:${msg.document.id}:${name}]`;
+    } else if (msg.type === "audio" && msg.audio) {
+      messageText = `[AUDIO:${msg.audio.id}]`;
+    } else if (msg.type === "video" && msg.video) {
+      const caption = msg.video.caption?.trim();
+      messageText = caption
+        ? `[VIDEO:${msg.video.id}] ${caption}`
+        : `[VIDEO:${msg.video.id}]`;
+    } else if (msg.type === "sticker" && msg.sticker) {
+      messageText = `[STICKER:${msg.sticker.id}]`;
     }
 
     await ingestInboundMessage({

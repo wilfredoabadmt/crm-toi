@@ -51,6 +51,32 @@ export type WebhookMessage = {
     name?: string;
     address?: string;
   };
+  image?: {
+    id: string;
+    mime_type?: string;
+    sha256?: string;
+    caption?: string;
+  };
+  document?: {
+    id: string;
+    caption?: string;
+    filename?: string;
+    mime_type?: string;
+  };
+  audio?: {
+    id: string;
+    mime_type?: string;
+    voice?: boolean;
+  };
+  video?: {
+    id: string;
+    caption?: string;
+    mime_type?: string;
+  };
+  sticker?: {
+    id: string;
+    mime_type?: string;
+  };
 };
 
 export type WebhookStatus = {
