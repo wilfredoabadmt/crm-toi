@@ -30,11 +30,34 @@ export type BoardLead = {
   conversationId: string | null;
 };
 
-export function PipelineClient({ role = "member" }: { role?: string }) {
+export function PipelineClient({
+  role = "member",
+  userEmail = "",
+}: {
+  role?: string;
+  userEmail?: string;
+}) {
   const [stages, setStages] = useState<StageDto[]>([]);
   const [leads, setLeads] = useState<BoardLead[]>([]);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
+  const [filterMine, setFilterMine] = useState(false);
+
+  const isOwner = role === "owner";
+  const normalizedEmail = userEmail.trim().toLowerCase();
+
+  // Para miembros, filtrar etapas de otros departamentos (mantener etapas generales y su departamento)
+  const visibleStages = !isOwner
+    ? stages.filter((s) => {
+        if (!s.assignedEmail) return true;
+        return s.assignedEmail.trim().toLowerCase() === normalizedEmail;
+      })
+    : filterMine
+      ? stages.filter((s) => {
+          if (!s.assignedEmail) return true;
+          return s.assignedEmail.trim().toLowerCase() === normalizedEmail;
+        })
+      : stages;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -81,12 +104,34 @@ export function PipelineClient({ role = "member" }: { role?: string }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
-        <h2 className="font-semibold">Pipeline</h2>
-        {role === "owner" && (
-          <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
-            <Settings2 className="h-4 w-4" /> Gestionar etapas
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold">Pipeline</h2>
+          {!isOwner && (
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              Vista Comercial
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isOwner && (
+            <button
+              onClick={() => setFilterMine(!filterMine)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium border transition-colors",
+                filterMine
+                  ? "bg-brand text-white border-brand"
+                  : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {filterMine ? "Mis etapas" : "Todas las etapas"}
+            </button>
+          )}
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
+              <Settings2 className="h-4 w-4" /> Gestionar etapas
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 overflow-x-auto p-4">
@@ -96,7 +141,7 @@ export function PipelineClient({ role = "member" }: { role?: string }) {
           onDragEnd={(e) => void onDragEnd(e)}
         >
           <div className="flex h-full gap-3">
-            {stages.map((stage) => (
+            {visibleStages.map((stage) => (
               <StageColumn
                 key={stage.id}
                 stage={stage}
