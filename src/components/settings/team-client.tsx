@@ -1,11 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRightLeft, Check, Plus, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Building,
+  Check,
+  CreditCard,
+  Plus,
+  ShoppingBag,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -25,6 +38,17 @@ type Member = {
   createdAt: string;
 };
 
+const COLOR_PALETTE = [
+  { label: "Celeste TOI", value: "#0ea5e9" },
+  { label: "Ámbar", value: "#f59e0b" },
+  { label: "Esmeralda", value: "#10b981" },
+  { label: "Púrpura", value: "#8b5cf6" },
+  { label: "Índigo", value: "#6366f1" },
+  { label: "Rosa", value: "#ec4899" },
+  { label: "Naranja", value: "#f97316" },
+  { label: "Teal", value: "#14b8a6" },
+];
+
 export function TeamClient() {
   const [members, setMembers] = useState<Member[]>([]);
   const [departments, setDepartments] = useState<DepartmentConfig[]>([]);
@@ -43,6 +67,16 @@ export function TeamClient() {
   const [savedAssignments, setSavedAssignments] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
+  // Modal de Crear Departamento / Sucursal
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newDepName, setNewDepName] = useState("");
+  const [newDepShortName, setNewDepShortName] = useState("");
+  const [newDepColor, setNewDepColor] = useState(COLOR_PALETTE[0]!.value);
+  const [newDepIcon, setNewDepIcon] = useState<"building" | "wrench" | "shopping-bag" | "credit-card">("building");
+  const [newDepDescription, setNewDepDescription] = useState("");
+  const [newDepTitularEmail, setNewDepTitularEmail] = useState("");
+  const [creatingDep, setCreatingDep] = useState(false);
+
   const showFeedback = (msg: string) => {
     setActionFeedback(msg);
     setTimeout(() => setActionFeedback(null), 3500);
@@ -57,6 +91,9 @@ export function TeamClient() {
     if (teamRes?.ok) {
       const data = (await teamRes.json()) as { members: Member[] };
       setMembers(data.members);
+      if (!newDepTitularEmail && data.members[0]) {
+        setNewDepTitularEmail(data.members[0].email);
+      }
     }
 
     if (depsRes?.ok) {
@@ -80,7 +117,7 @@ export function TeamClient() {
       }
       setAssignments(initial);
     }
-  }, []);
+  }, [newDepTitularEmail]);
 
   useEffect(() => {
     void refetch();
@@ -414,8 +451,106 @@ export function TeamClient() {
     );
   }
 
+  /** Crear un nuevo Departamento o Sucursal */
+  async function handleCreateDepartment() {
+    if (!newDepName.trim() || !newDepShortName.trim()) {
+      alert("Por favor ingresa el nombre y nombre corto de la sucursal o departamento");
+      return;
+    }
+
+    const titular = members.find(
+      (m) => m.email.toLowerCase() === newDepTitularEmail.toLowerCase()
+    );
+    if (!titular) {
+      alert("Por favor selecciona un Responsable Titular válido para la sucursal");
+      return;
+    }
+
+    setCreatingDep(true);
+    const sanitizedId = `suc_${newDepShortName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, "_")}_${Date.now().toString(36)}`;
+
+    const newDep: DepartmentConfig = {
+      id: sanitizedId,
+      name: newDepName.trim(),
+      shortName: newDepShortName.trim(),
+      badgeColor: newDepColor,
+      icon: newDepIcon,
+      description: newDepDescription.trim() || `Atención de consultas en ${newDepName.trim()}`,
+      assignedName: titular.name,
+      assignedEmail: titular.email,
+      memberEmails: [titular.email],
+      keywords: [newDepShortName.toLowerCase(), newDepName.toLowerCase()],
+    };
+
+    // Obtener sucursales/departamentos personalizados actuales
+    const currentCustom = departments.filter(
+      (d) => !["tecnico", "administrativo", "comercial", "gerencia"].includes(d.id)
+    );
+    const updatedCustom = [...currentCustom, newDep];
+
+    // Actualizar asignaciones
+    const updatedAssignments = {
+      ...assignments,
+      [sanitizedId]: {
+        name: titular.name,
+        email: titular.email,
+        memberEmails: [titular.email],
+      },
+    };
+
+    const res = await fetch("/api/settings/departments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        assignments: updatedAssignments,
+        customDepartments: updatedCustom,
+      }),
+    }).catch(() => null);
+
+    setCreatingDep(false);
+
+    if (res?.ok) {
+      setCreateModalOpen(false);
+      setNewDepName("");
+      setNewDepShortName("");
+      setNewDepDescription("");
+      showFeedback(`Sucursal / Departamento "${newDep.name}" creado con éxito`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("departments-updated"));
+      }
+      void refetch();
+    } else {
+      alert("No se pudo crear el departamento o sucursal");
+    }
+  }
+
+  /** Eliminar un Departamento o Sucursal personalizado */
+  async function handleDeleteCustomDepartment(dep: DepartmentConfig) {
+    const ok = window.confirm(
+      `¿Estás seguro de que deseas eliminar "${dep.name}" (${dep.shortName})?\n\nEsta acción quitará el departamento de la bandeja y del pipeline.`
+    );
+    if (!ok) return;
+
+    const res = await fetch(`/api/settings/departments?id=${dep.id}`, {
+      method: "DELETE",
+    }).catch(() => null);
+
+    if (res?.ok) {
+      showFeedback(`"${dep.name}" eliminado correctamente`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("departments-updated"));
+      }
+      void refetch();
+    } else {
+      alert("No se pudo eliminar el departamento");
+    }
+  }
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       {/* Notificación de retroalimentación de acción */}
       {actionFeedback && (
         <div className="sticky top-4 z-50 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm backdrop-blur dark:text-emerald-300">
@@ -433,7 +568,7 @@ export function TeamClient() {
         </div>
       )}
 
-      {/* 1. Crear cuenta */}
+      {/* 1. Crear cuenta de equipo */}
       <Card>
         <CardHeader>
           <CardTitle>Crear cuenta de equipo</CardTitle>
@@ -500,14 +635,14 @@ export function TeamClient() {
         </CardContent>
       </Card>
 
-      {/* 2. Lista de Miembros con Departamentos Asignados y Cambio Rápido */}
+      {/* 2. Lista de Miembros con Departamentos Asignados */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Miembros del Equipo ({members.length})
           </p>
           <span className="text-[11px] text-muted-foreground">
-            Puedes cambiar de departamento a cada miembro directamente desde su fila.
+            Puedes cambiar de área a cualquier miembro directamente desde su fila.
           </span>
         </div>
 
@@ -541,7 +676,7 @@ export function TeamClient() {
                           return (
                             <span
                               key={d.id}
-                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
                               style={{
                                 backgroundColor: `${d.badgeColor}18`,
                                 color: d.badgeColor,
@@ -554,7 +689,7 @@ export function TeamClient() {
                               />
                               {d.shortName}
                               {isTitular && (
-                                <span className="opacity-80 font-bold text-[8.5px]">
+                                <span className="opacity-80 font-bold text-[9px]">
                                   (Titular)
                                 </span>
                               )}
@@ -572,7 +707,6 @@ export function TeamClient() {
 
                 {/* Acciones de miembro: Cambiar de departamento y Eliminar */}
                 <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  {/* Selector rápido: Cambiar a otro departamento */}
                   <select
                     value=""
                     onChange={(e) =>
@@ -581,13 +715,13 @@ export function TeamClient() {
                     aria-label={`Cambiar departamento de ${m.name}`}
                     className="h-8 rounded-md border bg-background px-2.5 text-xs text-muted-foreground shadow-2xs hover:text-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                   >
-                    <option value="">Cambiar departamento…</option>
+                    <option value="">Cambiar área…</option>
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>
                         Mover a: {d.name}
                       </option>
                     ))}
-                    <option value="none">Quitar de todos los departamentos</option>
+                    <option value="none">Quitar de todas las áreas</option>
                   </select>
 
                   {!isOwner && (
@@ -609,24 +743,32 @@ export function TeamClient() {
         </div>
       </div>
 
-      {/* 3. Asignación de Responsables y Equipo por Departamento */}
+      {/* 3. Asignación de Responsables, Nómina y Creación de Sucursales */}
       {departments.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-brand" />
-                  Responsables y Equipo por Departamento
+                  Responsables y Nómina por Departamento / Sucursal
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Define el titular y los miembros de apoyo de cada departamento.
-                  Puedes eliminar a miembros de un departamento o moverlos de un área a otra en 1 clic.
+                  Revisa los nombres de todos los colaboradores asignados a cada área o sucursal.
                 </CardDescription>
               </div>
+
+              {/* Botón para Crear Departamento / Sucursal */}
+              <Button
+                onClick={() => setCreateModalOpen(true)}
+                className="gap-1.5 shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Crear Departamento o Sucursal</span>
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <div className="space-y-4">
               {departments.map((dep) => {
                 const current = assignments[dep.id] ?? {
@@ -654,72 +796,98 @@ export function TeamClient() {
                   );
                 });
 
+                const isCustomDep = !["tecnico", "administrativo", "comercial", "gerencia"].includes(dep.id);
+
                 return (
                   <div
                     key={dep.id}
-                    className="flex flex-col gap-3 rounded-lg border p-4 transition-all"
+                    className="flex flex-col gap-3.5 rounded-xl border p-4.5 transition-all shadow-2xs"
                     style={{
-                      borderColor: `${dep.badgeColor}35`,
-                      backgroundColor: `${dep.badgeColor}08`,
+                      borderColor: `${dep.badgeColor}40`,
+                      backgroundColor: `${dep.badgeColor}09`,
                     }}
                   >
-                    {/* Cabecera del departamento y Selector de Titular */}
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    {/* Cabecera del departamento / sucursal y Selector de Titular */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-border/30 pb-3">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span
-                            className="h-2.5 w-2.5 rounded-full"
+                            className="h-3 w-3 rounded-full shrink-0"
                             style={{ backgroundColor: dep.badgeColor }}
                           />
-                          <p className="text-sm font-semibold">{dep.name}</p>
+                          <p className="text-base font-bold text-foreground">{dep.name}</p>
                           <span
-                            className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                            className="rounded px-2 py-0.5 text-[11px] font-bold"
                             style={{
-                              backgroundColor: `${dep.badgeColor}22`,
+                              backgroundColor: `${dep.badgeColor}25`,
                               color: dep.badgeColor,
                             }}
                           >
                             {dep.shortName}
                           </span>
+                          {isCustomDep && (
+                            <span className="rounded bg-brand/10 border border-brand/30 px-2 py-0.5 text-[10px] font-semibold text-brand">
+                              Sucursal / Personalizada
+                            </span>
+                          )}
                         </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {dep.description}
                         </p>
                       </div>
 
-                      <div className="shrink-0 sm:w-64">
-                        <label
-                          htmlFor={`titular-${dep.id}`}
-                          className="block text-[11px] font-semibold text-muted-foreground mb-1"
-                        >
-                          Responsable titular (contacto principal IA):
-                        </label>
-                        <select
-                          id={`titular-${dep.id}`}
-                          aria-label={`Responsable titular de ${dep.name}`}
-                          value={current.email}
-                          onChange={(e) =>
-                            handleTitularChange(dep.id, e.target.value)
-                          }
-                          className="h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        >
-                          {members.map((m) => (
-                            <option key={m.id} value={m.email}>
-                              {m.name} ({m.email})
-                            </option>
-                          ))}
-                        </select>
+                      <div className="flex items-center gap-2 shrink-0 sm:w-72">
+                        <div className="w-full">
+                          <label
+                            htmlFor={`titular-${dep.id}`}
+                            className="block text-[11px] font-semibold text-muted-foreground mb-1"
+                          >
+                            Responsable titular (contacto principal):
+                          </label>
+                          <select
+                            id={`titular-${dep.id}`}
+                            aria-label={`Responsable titular de ${dep.name}`}
+                            value={current.email}
+                            onChange={(e) =>
+                              handleTitularChange(dep.id, e.target.value)
+                            }
+                            className="h-9 w-full rounded-md border bg-background px-3 py-1 text-xs shadow-2xs focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                          >
+                            {members.map((m) => (
+                              <option key={m.id} value={m.email}>
+                                {m.name} ({m.email})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {isCustomDep && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title={`Eliminar ${dep.name}`}
+                            onClick={() => void handleDeleteCustomDepartment(dep)}
+                            className="h-9 w-9 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive self-end shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Lista de Miembros Asignados con botones de Eliminar y Mover */}
-                    <div className="border-t border-border/40 pt-2.5 space-y-2">
+                    {/* Nómina Detallada de Miembros que pertenecen a este Departamento */}
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11.5px] font-semibold text-foreground">
-                          Miembros activos en {dep.shortName} ({assignedMembers.length}):
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Nómina de Integrantes ({assignedMembers.length})
+                          </p>
+                          <span className="text-[11px] text-muted-foreground">
+                            — Personal activo asignado a {dep.shortName}
+                          </span>
+                        </div>
 
-                        {/* Selector para Agregar miembros que faltan */}
+                        {/* Selector para Agregar colaboradores disponibles */}
                         {availableMembers.length > 0 ? (
                           <div className="flex items-center gap-1.5">
                             <select
@@ -730,25 +898,40 @@ export function TeamClient() {
                                 }
                               }}
                               aria-label={`Agregar miembro a ${dep.name}`}
-                              className="h-7 rounded border border-dashed bg-background px-2 text-[11.5px] text-muted-foreground hover:text-foreground focus:border-brand focus:outline-none"
+                              className="h-7.5 rounded-md border border-dashed bg-background px-2.5 text-xs text-muted-foreground hover:text-foreground focus:border-brand focus:outline-none shadow-2xs font-medium"
                             >
-                              <option value="">+ Agregar miembro a {dep.shortName}…</option>
-                              {availableMembers.map((m) => (
-                                <option key={m.id} value={m.email}>
-                                  + {m.name} ({m.email})
-                                </option>
-                              ))}
+                              <option value="">+ Sumar miembro a {dep.shortName}…</option>
+                              {availableMembers.map((m) => {
+                                const currentDepOfM = departments.find((d) => {
+                                  const a = assignments[d.id];
+                                  return (
+                                    a?.email?.toLowerCase() === m.email.toLowerCase() ||
+                                    (a?.memberEmails ?? []).some(
+                                      (e) => e.toLowerCase() === m.email.toLowerCase()
+                                    )
+                                  );
+                                });
+
+                                return (
+                                  <option key={m.id} value={m.email}>
+                                    + {m.name}{" "}
+                                    {currentDepOfM
+                                      ? `(Mover desde ${currentDepOfM.shortName})`
+                                      : `(Sin área)`}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
                         ) : (
-                          <span className="text-[10.5px] text-muted-foreground">
+                          <span className="text-[11px] text-muted-foreground font-medium">
                             Todos los miembros están asignados
                           </span>
                         )}
                       </div>
 
-                      {/* Chips/Tarjetas de miembros asignados */}
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {/* Tarjetas de Miembros con Nombre Visible, Correo y Rol */}
+                      <div className="grid gap-2.5 sm:grid-cols-2">
                         {assignedMembers.map((m) => {
                           const isTitular =
                             m.email.toLowerCase() === current.email.toLowerCase();
@@ -757,31 +940,46 @@ export function TeamClient() {
                             <div
                               key={m.id}
                               className={cn(
-                                "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs bg-card shadow-2xs transition-all",
-                                isTitular ? "border-brand/40 bg-brand/5" : "border-border/70"
+                                "flex items-center justify-between gap-3 rounded-lg border p-3 bg-card shadow-2xs transition-all",
+                                isTitular
+                                  ? "border-brand/50 bg-brand/5 shadow-xs"
+                                  : "border-border/70 hover:border-border"
                               )}
                             >
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: dep.badgeColor }}
-                              />
-                              <div className="min-w-0">
-                                <span className="font-medium text-foreground">{m.name}</span>
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text shadow-2xs">
+                                  {initials(m.name)}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="truncate text-xs font-bold text-foreground">
+                                      {m.name}
+                                    </p>
+                                    {isTitular ? (
+                                      <span
+                                        className="rounded px-1.5 py-0.2 text-[9.5px] font-bold shrink-0"
+                                        style={{
+                                          backgroundColor: `${dep.badgeColor}25`,
+                                          color: dep.badgeColor,
+                                        }}
+                                      >
+                                        ★ Titular
+                                      </span>
+                                    ) : (
+                                      <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] text-muted-foreground shrink-0 font-medium">
+                                        Apoyo
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {m.email}
+                                  </p>
+                                </div>
                               </div>
 
-                              {isTitular ? (
-                                <span
-                                  className="rounded px-1.5 py-0.2 text-[9.5px] font-bold"
-                                  style={{
-                                    backgroundColor: `${dep.badgeColor}25`,
-                                    color: dep.badgeColor,
-                                  }}
-                                >
-                                  Titular
-                                </span>
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  {/* Dropdown para Mover a otro departamento */}
+                              {!isTitular && (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {/* Mover a otra área */}
                                   <select
                                     value=""
                                     onChange={(e) => {
@@ -793,9 +991,9 @@ export function TeamClient() {
                                         );
                                       }
                                     }}
-                                    title="Mover a otro departamento"
-                                    aria-label={`Mover ${m.name} a otro departamento`}
-                                    className="h-6 rounded border bg-background px-1.5 text-[10.5px] text-muted-foreground hover:text-foreground focus:border-brand focus:outline-none"
+                                    title="Mover a otra área"
+                                    aria-label={`Mover ${m.name} a otra área`}
+                                    className="h-7 rounded border bg-background px-2 text-[11px] text-muted-foreground hover:text-foreground focus:border-brand focus:outline-none font-medium"
                                   >
                                     <option value="">Mover a…</option>
                                     {departments
@@ -807,7 +1005,7 @@ export function TeamClient() {
                                       ))}
                                   </select>
 
-                                  {/* Botón para Eliminar del departamento */}
+                                  {/* Botón Quitar de esta área */}
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -815,9 +1013,9 @@ export function TeamClient() {
                                     }
                                     title={`Quitar a ${m.name} de ${dep.shortName}`}
                                     aria-label={`Quitar a ${m.name} de ${dep.shortName}`}
-                                    className="flex h-6 items-center gap-1 rounded border border-transparent px-1.5 text-[10.5px] text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                                    className="flex h-7 items-center gap-1 rounded border border-transparent px-2 text-[11px] font-medium text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive transition-colors"
                                   >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-3.5 w-3.5" />
                                     <span>Quitar</span>
                                   </button>
                                 </div>
@@ -827,10 +1025,8 @@ export function TeamClient() {
                         })}
                       </div>
 
-                      <p className="text-[10.5px] text-muted-foreground pt-0.5">
-                        • Los miembros de apoyo pueden ser eliminados o cambiados a otra área en cualquier momento.
-                        <br />
-                        • Para cambiar al titular, selecciona otro miembro en el desplegable superior.
+                      <p className="text-[10.5px] text-muted-foreground pt-1">
+                        • Cada miembro pertenece a un solo departamento o sucursal a la vez para mantener el orden en la atención.
                       </p>
                     </div>
                   </div>
@@ -838,10 +1034,15 @@ export function TeamClient() {
               })}
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-2 border-t">
               <Button
                 disabled={savingAssignments}
-                onClick={() => void persistAssignments(assignments, "Todas las asignaciones fueron guardadas correctamente")}
+                onClick={() =>
+                  void persistAssignments(
+                    assignments,
+                    "Todas las asignaciones fueron guardadas correctamente"
+                  )
+                }
               >
                 {savingAssignments ? "Guardando…" : "Guardar responsables"}
               </Button>
@@ -854,6 +1055,187 @@ export function TeamClient() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal: Crear Departamento o Sucursal */}
+      {createModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setCreateModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                  <Building className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    Crear Departamento o Sucursal
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Habilita una nueva área u oficina con su propio pipeline, bandeja y derivaciones.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-dep-name" className="text-xs font-semibold">
+                    Nombre completo
+                  </Label>
+                  <Input
+                    id="new-dep-name"
+                    placeholder="ej. Sucursal Cochabamba"
+                    value={newDepName}
+                    onChange={(e) => setNewDepName(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-dep-short" className="text-xs font-semibold">
+                    Nombre corto (pestañas)
+                  </Label>
+                  <Input
+                    id="new-dep-short"
+                    placeholder="ej. Suc. Cochabamba"
+                    value={newDepShortName}
+                    onChange={(e) => setNewDepShortName(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Selector de Color Corporativo */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Color de Identificación</Label>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {COLOR_PALETTE.map((c) => {
+                    const isSelected = newDepColor === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setNewDepColor(c.value)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-all",
+                          isSelected
+                            ? "border-foreground bg-accent font-semibold shadow-xs"
+                            : "border-border/60 hover:bg-muted/50"
+                        )}
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: c.value }}
+                        />
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selector de Ícono */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Tipo / Ícono</Label>
+                <div className="grid grid-cols-4 gap-2 pt-0.5">
+                  {[
+                    { id: "building", label: "Sucursal", icon: Building },
+                    { id: "wrench", label: "Técnico", icon: Wrench },
+                    { id: "shopping-bag", label: "Comercial", icon: ShoppingBag },
+                    { id: "credit-card", label: "Cobranzas", icon: CreditCard },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const isSelected = newDepIcon === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setNewDepIcon(item.id as never)}
+                        className={cn(
+                          "flex flex-col items-center gap-1 rounded-lg border p-2.5 text-xs transition-all",
+                          isSelected
+                            ? "border-brand bg-brand/10 font-bold text-brand"
+                            : "border-border/70 hover:bg-muted/50 text-muted-foreground"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="text-[11px]">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Descripción para el Agente de IA y los operadores */}
+              <div className="space-y-1.5">
+                <Label htmlFor="new-dep-desc" className="text-xs font-semibold">
+                  Descripción (qué atiende esta área o sucursal)
+                </Label>
+                <Input
+                  id="new-dep-desc"
+                  placeholder="ej. Atención presencial, trámites y cobranzas en la sucursal de Cochabamba"
+                  value={newDepDescription}
+                  onChange={(e) => setNewDepDescription(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Responsable Titular */}
+              <div className="space-y-1.5">
+                <Label htmlFor="new-dep-titular" className="text-xs font-semibold">
+                  Responsable Titular (Líder del área)
+                </Label>
+                <select
+                  id="new-dep-titular"
+                  value={newDepTitularEmail}
+                  onChange={(e) => setNewDepTitularEmail(e.target.value)}
+                  className="h-9 w-full rounded-md border bg-background px-3 py-1 text-xs shadow-2xs focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.email}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  El titular liderará la atención y recibirá las transferencias directas del bot de WhatsApp.
+                </p>
+              </div>
+            </div>
+
+            {/* Acciones del Modal */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={creatingDep || !newDepName.trim() || !newDepShortName.trim()}
+                onClick={() => void handleCreateDepartment()}
+              >
+                {creatingDep ? "Creando…" : "Crear Departamento / Sucursal"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -17,9 +17,9 @@ export interface DepartmentConfig {
   memberEmails?: string[]; // Todos los correos de miembros habilitados en este departamento
   members?: { name: string; email: string }[];
   badgeColor: string;
-  icon: "building" | "credit-card" | "wrench" | "shopping-bag";
+  icon?: "building" | "credit-card" | "wrench" | "shopping-bag" | string;
   description: string;
-  keywords: string[];
+  keywords?: string[];
 }
 
 export const DEPARTMENTS: DepartmentConfig[] = [
@@ -38,16 +38,16 @@ export const DEPARTMENTS: DepartmentConfig[] = [
       "tecnico",
       "técnico",
       "falla",
-      "fallas",
-      "corte",
-      "sin internet",
-      "lento",
-      "lentitud",
-      "router",
-      "fibra",
-      "caída",
       "avería",
-      "problema técnico",
+      "caída",
+      "lento",
+      "velocidad",
+      "fibra",
+      "router",
+      "corte",
+      "sin señal",
+      "intermitente",
+      "desconectado",
     ],
   },
   {
@@ -62,19 +62,18 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     description: "Cobranzas, facturación, estados de cuenta, prórrogas, comprobantes y pagos.",
     keywords: [
       "cobranza",
-      "cobranzas",
-      "factura",
-      "facturas",
+      "cobro",
       "pago",
-      "pagos",
-      "deuda",
-      "cuota",
+      "factura",
+      "facturación",
       "comprobante",
-      "prórroga",
-      "cuenta",
+      "depósito",
+      "transferencia",
+      "mora",
+      "deuda",
+      "mes",
       "recibo",
-      "banco",
-      "qr",
+      "prórroga",
     ],
   },
   {
@@ -88,18 +87,20 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     icon: "shopping-bag",
     description: "Ventas, nuevos planes de internet, contrataciones, cotizaciones y promociones.",
     keywords: [
-      "ventas",
       "venta",
-      "comercial",
-      "nuevo plan",
-      "planes",
       "contratar",
-      "cotización",
+      "nuevo cliente",
+      "plan",
+      "planes",
       "precio",
+      "cotización",
+      "megas",
+      "velocidades",
       "promoción",
-      "costo",
-      "instalación nueva",
-      "requisitos",
+      "duplicar",
+      "adquirir",
+      "instalar",
+      "instalación",
     ],
   },
   {
@@ -267,6 +268,23 @@ export function getDepartmentByStageName(
 }
 
 /**
+ * Retorna las etapas recomendadas para un departamento o sucursal.
+ */
+export function getRecommendedStagesForDepartment(
+  dep: DepartmentConfig
+): { name: string; kind: "open" | "won" | "lost" }[] {
+  const predefined = RECOMMENDED_DEPARTMENT_STAGES[dep.id];
+  if (predefined) {
+    return predefined;
+  }
+  return [
+    { name: `Recepción ${dep.shortName}`, kind: "open" },
+    { name: "En Atención / Gestión", kind: "open" },
+    { name: "Completado / Resuelto", kind: "won" },
+  ];
+}
+
+/**
  * Genera la directiva de sistema para el agente de IA con las reglas de derivación.
  */
 export function buildDepartmentRoutingPrompt(
@@ -277,12 +295,24 @@ export function buildDepartmentRoutingPrompt(
   const comercial = departments.find((d) => d.id === "comercial") ?? DEPARTMENTS[2]!;
   const gerencia = departments.find((d) => d.id === "gerencia") ?? DEPARTMENTS[3]!;
 
-  return [
-    "REGLAS DE DERIVACIÓN INMEDIATA POR DEPARTAMENTO:",
-    "Cuando un cliente manifieste su necesidad, clasifícalo en el departamento correspondiente:",
+  const lines = [
+    "REGLAS DE DERIVACIÓN INMEDIATA POR DEPARTAMENTO O SUCURSAL:",
+    "Cuando un cliente manifieste su necesidad o ubicación, clasifícalo en el departamento correspondiente:",
     `- Falla técnica, corte de internet, lentitud, router o avería → Mueve a etapa: 'Departamento técnico'. Despídete amablemente: 'He transferido tu reporte al Departamento Técnico. ${tecnico.assignedName} de nuestro equipo ya lo tiene en pantalla y te responderá por aquí.' y ejecuta handoff.`,
     `- Facturación, pagos, comprobantes, prórrogas o cobranzas → Mueve a etapa: 'Departamento administrativo'. Despídete: 'He transferido tu solicitud al Departamento Administrativo. ${admin.assignedName} revisará tu estado de cuenta y continuará tu atención.' y ejecuta handoff.`,
     `- Nuevos planes, contratación de servicio, precios o cotizaciones → Mueve a etapa: 'Departamento comercial'. Despídete: 'Excelente. He derivado tu consulta al Departamento Comercial. ${comercial.assignedName} te atenderá para coordinar tu servicio.' y ejecuta handoff.`,
     `- Reclamos formales graves, alianzas o asuntos ejecutivos → Mueve a etapa: 'Gerencia'. Despídete: 'He canalizado tu caso a la Gerencia con ${gerencia.assignedName} para su atención directa.' y ejecuta handoff.`,
-  ].join("\n");
+  ];
+
+  const customDeps = departments.filter(
+    (d) => !["tecnico", "administrativo", "comercial", "gerencia"].includes(d.id)
+  );
+
+  for (const dep of customDeps) {
+    lines.push(
+      `- Atención en ${dep.name} (${dep.description || dep.shortName}) → Mueve a etapa: '${dep.name}'. Despídete: 'He transferido tu solicitud a ${dep.name}. ${dep.assignedName} de nuestro equipo te atenderá de inmediato.' y ejecuta handoff.`
+    );
+  }
+
+  return lines.join("\n");
 }

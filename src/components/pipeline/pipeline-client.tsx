@@ -32,7 +32,7 @@ import {
   isUserInDepartment,
   resolveDepartmentIdForStage,
 } from "@/lib/departments";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime } from "@/components/inbox/helpers";
@@ -62,6 +62,7 @@ export function PipelineClient({
   userEmail?: string;
 }) {
   const [departments, setDepartments] = useState<DepartmentConfig[]>(DEPARTMENTS);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("comercial");
   const [stages, setStages] = useState<StageDto[]>([]);
   const [leads, setLeads] = useState<BoardLead[]>([]);
@@ -76,6 +77,9 @@ export function PipelineClient({
     fetch("/api/settings/departments")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (data?.members && Array.isArray(data.members)) {
+          setTeamMembers(data.members);
+        }
         if (data?.departments && Array.isArray(data.departments)) {
           setDepartments(data.departments);
           // Si el usuario es miembro, fijar su departamento
@@ -108,6 +112,25 @@ export function PipelineClient({
     () => departments.find((d) => d.id === selectedDeptId) ?? departments[0],
     [departments, selectedDeptId]
   );
+
+  const currentDeptMembers = useMemo(() => {
+    if (!currentDept) return [];
+    const titularEmail = (currentDept.assignedEmail ?? "").toLowerCase();
+    const emails = currentDept.memberEmails ?? (titularEmail ? [titularEmail] : []);
+
+    return emails.map((email) => {
+      const lower = email.toLowerCase();
+      const isTitular = lower === titularEmail;
+      const found = teamMembers.find((m) => m.email.toLowerCase() === lower);
+      return {
+        email,
+        name: isTitular
+          ? currentDept.assignedName
+          : found?.name ?? email.split("@")[0] ?? email,
+        isTitular,
+      };
+    });
+  }, [currentDept, teamMembers]);
 
   // Filtrar etapas que corresponden al departamento seleccionado
   const visibleStages = useMemo(() => {
@@ -276,22 +299,45 @@ export function PipelineClient({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Nómina de Miembros que pertenecen a este departamento */}
+          <div className="flex flex-wrap items-center gap-2">
             {!isOwner && isUserInDepartment(normalizedEmail, currentDept) && (
               <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 shadow-2xs">
                 ✓ Tu área asignada
               </span>
             )}
-            <div className="flex items-center gap-2 rounded-md border bg-card/80 px-3 py-1 shadow-2xs">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <div className="text-right">
-                <div className="font-semibold text-foreground text-[11.5px]">
-                  {currentDept.assignedName}
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {currentDeptMembers.map((m) => (
+                <div
+                  key={m.email}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-2.5 py-1 shadow-2xs text-xs transition-all",
+                    m.isTitular
+                      ? "border-brand/40 bg-card/90 font-semibold"
+                      : "border-border/60 bg-card/70 font-medium text-muted-foreground hover:text-foreground"
+                  )}
+                  title={`${m.name} (${m.email}) - ${m.isTitular ? "Responsable Titular" : "Miembro del equipo"}`}
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-text">
+                    {initials(m.name)}
+                  </span>
+                  <div className="min-w-0">
+                    <span className="truncate text-[11.5px] text-foreground">{m.name}</span>
+                    {m.isTitular && (
+                      <span
+                        className="ml-1.5 rounded px-1.5 py-0.2 text-[9px] font-bold"
+                        style={{
+                          backgroundColor: `${currentDept.badgeColor}25`,
+                          color: currentDept.badgeColor,
+                        }}
+                      >
+                        ★ Titular
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-[10.5px] text-muted-foreground">
-                  {currentDept.assignedEmail}
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

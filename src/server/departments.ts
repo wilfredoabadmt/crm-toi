@@ -5,6 +5,7 @@ import { scoped } from "@/lib/db/tenant";
 import {
   DEPARTMENTS,
   RECOMMENDED_DEPARTMENT_STAGES,
+  getRecommendedStagesForDepartment,
   resolveDepartmentIdForStage,
   type DepartmentConfig,
 } from "@/lib/departments";
@@ -37,7 +38,9 @@ export async function ensureDepartmentStages(organizationId: string) {
   let maxPos = stages.length > 0 ? Math.max(...stages.map((s) => s.position)) : -1;
   let addedAny = false;
 
-  for (const dep of DEPARTMENTS) {
+  const allDepartments = await getResolvedDepartments(organizationId);
+
+  for (const dep of allDepartments) {
     const existingInDep = stages.filter((s) => s.departmentId === dep.id);
     const hasOnlyLegacySingleStage =
       existingInDep.length === 1 &&
@@ -45,7 +48,7 @@ export async function ensureDepartmentStages(organizationId: string) {
         existingInDep[0]!.name.toLowerCase() === dep.shortName.toLowerCase());
 
     if (existingInDep.length === 0 || hasOnlyLegacySingleStage) {
-      const recommended = RECOMMENDED_DEPARTMENT_STAGES[dep.id] ?? [];
+      const recommended = getRecommendedStagesForDepartment(dep);
       for (const item of recommended) {
         if (stages.some((s) => s.name.toLowerCase() === item.name.toLowerCase() && s.departmentId === dep.id)) {
           continue;
@@ -136,6 +139,56 @@ export async function saveDepartmentAssignments(
 }
 
 /**
+ * Obtiene los departamentos o sucursales personalizados guardados en organization.metadata
+ */
+export async function getCustomDepartments(
+  organizationId: string
+): Promise<DepartmentConfig[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ metadata: schema.organization.metadata })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId))
+    .limit(1);
+
+  if (!rows[0]?.metadata) return [];
+  try {
+    const meta = JSON.parse(rows[0].metadata) as Record<string, unknown>;
+    return (meta.customDepartments as DepartmentConfig[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Guarda los departamentos o sucursales personalizados en organization.metadata
+ */
+export async function saveCustomDepartments(
+  organizationId: string,
+  customDepartments: DepartmentConfig[]
+): Promise<void> {
+  const db = getDb();
+  const rows = await db
+    .select({ metadata: schema.organization.metadata })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId))
+    .limit(1);
+
+  let meta: Record<string, unknown> = {};
+  if (rows[0]?.metadata) {
+    try {
+      meta = JSON.parse(rows[0].metadata) as Record<string, unknown>;
+    } catch {}
+  }
+  meta.customDepartments = customDepartments;
+
+  await db
+    .update(schema.organization)
+    .set({ metadata: JSON.stringify(meta) })
+    .where(eq(schema.organization.id, organizationId));
+}
+
+/**
  * Remueve un correo de todos los departamentos en organization.metadata,
  * reasignando el titular si coincide con un miembro sustituto.
  */
@@ -176,14 +229,21 @@ export async function removeMemberFromAllDepartments(
 
 /**
  * Retorna la lista de departamentos de la organización, incorporando
- * los responsables principales y los miembros adicionales asignados.
+ * los departamentos base + las sucursales o departamentos creados,
+ * junto con sus responsables y miembros asignados.
  */
 export async function getResolvedDepartments(
   organizationId?: string | null
 ): Promise<DepartmentConfig[]> {
   if (!organizationId) return DEPARTMENTS;
-  const assignments = await getDepartmentAssignments(organizationId);
-  return DEPARTMENTS.map((d) => {
+  const [assignments, customDeps] = await Promise.all([
+    getDepartmentAssignments(organizationId),
+    getCustomDepartments(organizationId),
+  ]);
+
+  const allDepartments = [...DEPARTMENTS, ...customDeps];
+
+  return allDepartments.map((d) => {
     const custom = assignments[d.id];
     if (custom && custom.name && custom.email) {
       const customEmails =
