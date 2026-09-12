@@ -136,6 +136,45 @@ export async function saveDepartmentAssignments(
 }
 
 /**
+ * Remueve un correo de todos los departamentos en organization.metadata,
+ * reasignando el titular si coincide con un miembro sustituto.
+ */
+export async function removeMemberFromAllDepartments(
+  organizationId: string,
+  userEmail: string,
+  replacementLead?: { name: string; email: string }
+): Promise<void> {
+  const assignments = await getDepartmentAssignments(organizationId);
+  const lower = userEmail.trim().toLowerCase();
+  let changed = false;
+
+  for (const depId of Object.keys(assignments)) {
+    const dep = assignments[depId];
+    if (!dep) continue;
+
+    if (dep.memberEmails) {
+      const filtered = dep.memberEmails.filter(
+        (e) => e.trim().toLowerCase() !== lower
+      );
+      if (filtered.length !== dep.memberEmails.length) {
+        dep.memberEmails = filtered;
+        changed = true;
+      }
+    }
+
+    if (dep.email.trim().toLowerCase() === lower && replacementLead) {
+      dep.name = replacementLead.name;
+      dep.email = replacementLead.email;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await saveDepartmentAssignments(organizationId, assignments);
+  }
+}
+
+/**
  * Retorna la lista de departamentos de la organización, incorporando
  * los responsables principales y los miembros adicionales asignados.
  */
@@ -147,12 +186,14 @@ export async function getResolvedDepartments(
   return DEPARTMENTS.map((d) => {
     const custom = assignments[d.id];
     if (custom && custom.name && custom.email) {
+      const customEmails =
+        custom.memberEmails !== undefined
+          ? custom.memberEmails
+          : d.memberEmails ?? [];
       const allEmails = Array.from(
         new Set([
           custom.email.trim().toLowerCase(),
-          ...(custom.memberEmails ?? d.memberEmails ?? []).map((e) =>
-            e.trim().toLowerCase()
-          ),
+          ...customEmails.map((e) => e.trim().toLowerCase()),
         ])
       );
       return {

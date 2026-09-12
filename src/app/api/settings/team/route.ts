@@ -5,6 +5,7 @@ import { getAuth, runInternalSignup } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import { removeMemberFromAllDepartments } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
 
@@ -99,8 +100,10 @@ export const DELETE = withAuth(async (session, req: Request) => {
       id: schema.member.id,
       userId: schema.member.userId,
       role: schema.member.role,
+      email: schema.user.email,
     })
     .from(schema.member)
+    .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
     .where(
       and(
         eq(schema.member.id, memberId),
@@ -123,6 +126,17 @@ export const DELETE = withAuth(async (session, req: Request) => {
 
   // 2. Revocar de inmediato las sesiones activas del usuario
   await db.delete(schema.session).where(eq(schema.session.userId, target.userId));
+
+  // 3. Limpiar sus asignaciones de departamento
+  if (target.email) {
+    const ownerRows = await db
+      .select({ name: schema.user.name, email: schema.user.email })
+      .from(schema.user)
+      .where(eq(schema.user.id, session.userId))
+      .limit(1);
+    const ownerLead = ownerRows[0] ?? { name: "Propietario", email: "admin@toi.bo" };
+    await removeMemberFromAllDepartments(session.organizationId, target.email, ownerLead);
+  }
 
   return Response.json({ ok: true });
 });
