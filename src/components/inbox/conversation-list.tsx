@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { Search, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { DEPARTMENTS, getDepartmentByStageName, type DepartmentConfig } from "@/lib/departments";
+import {
+  DEPARTMENTS,
+  getDepartmentByStageName,
+  isUserInDepartment,
+  type DepartmentConfig,
+} from "@/lib/departments";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
@@ -85,9 +90,10 @@ export function ConversationList({
 
   const isOwner = currentUser?.role === "owner";
   const userEmail = (currentUser?.email ?? "").trim().toLowerCase();
-  const myDepartment = departments.find(
-    (d) => d.assignedEmail.trim().toLowerCase() === userEmail
+  const myDepartments = departments.filter((d) =>
+    isUserInDepartment(userEmail, d)
   );
+  const myDepartment = myDepartments[0];
 
   // Auto-posicionar al miembro en su departamento al iniciar
   useEffect(() => {
@@ -102,13 +108,14 @@ export function ConversationList({
   const loading = conversationsProp === null;
   const rawConversations = conversationsProp ?? [];
 
-  // Si es un miembro con departamento asignado (ej. Comercial),
-  // se enfoca en las conversaciones de su área para privacidad y foco.
+  // Si es un miembro con departamentos asignados (ej. Comercial, o Comercial + Técnico),
+  // se enfoca en las conversaciones de sus áreas para privacidad y foco.
   const conversations =
-    !isOwner && myDepartment
-      ? rawConversations.filter(
-          (c) => getDepartmentByStageName(c.stageName, departments)?.id === myDepartment.id
-        )
+    !isOwner && myDepartments.length > 0
+      ? rawConversations.filter((c) => {
+          const dep = getDepartmentByStageName(c.stageName, departments);
+          return dep ? myDepartments.some((md) => md.id === dep.id) : true;
+        })
       : rawConversations;
 
   const q = query.trim().toLowerCase();
@@ -123,16 +130,16 @@ export function ConversationList({
   const unreadCount = searched.filter((c) => c.unreadCount > 0).length;
 
   const filterTabs =
-    !isOwner && myDepartment
+    !isOwner && myDepartments.length > 0
       ? [
-          {
-            id: myDepartment.id,
-            label: `${myDepartment.shortName} (${myDepartment.assignedName})`,
+          ...myDepartments.map((d) => ({
+            id: d.id,
+            label: `${d.shortName} (${d.assignedName})`,
             count: searched.filter(
-              (c) => getDepartmentByStageName(c.stageName, departments)?.id === myDepartment.id
+              (c) => getDepartmentByStageName(c.stageName, departments)?.id === d.id
             ).length,
-            color: myDepartment.badgeColor,
-          },
+            color: d.badgeColor,
+          })),
           { id: "unread", label: "No leídas", count: unreadCount },
         ]
       : [

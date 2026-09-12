@@ -5,7 +5,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 
-import { getDepartmentByStageName } from "@/lib/departments";
+import { getDepartmentByStageName, isUserInDepartment } from "@/lib/departments";
 import { ensureDepartmentStages, getResolvedDepartments } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
@@ -38,36 +38,38 @@ const createSchema = z.object({
 });
 
 export const POST = withAuth(async (session, req: Request) => {
+  const body = await parseBody(req, createSchema);
+  if (!body.ok) return body.response;
+
   const db = getDb();
-  let targetDepartmentId = "comercial";
+  let targetDepartmentId = body.data.departmentId ?? "comercial";
 
   if (session.role !== "owner") {
-    // Si es miembro, solo puede crear etapas en su departamento asignado
+    // Si es miembro, validar que pertenezca al departamento solicitado o asignado
     const userRow = await db
       .select({ email: schema.user.email })
       .from(schema.user)
       .where(eq(schema.user.id, session.userId))
       .limit(1);
-    const userEmail = userRow[0]?.email?.toLowerCase();
+    const userEmail = userRow[0]?.email;
     const resolvedDeps = await getResolvedDepartments(session.organizationId);
-    const found = resolvedDeps.find(
-      (d) => d.assignedEmail?.toLowerCase() === userEmail
+
+    const userDeps = resolvedDeps.filter((d) =>
+      isUserInDepartment(userEmail, d)
     );
-    if (!found) {
+
+    if (userDeps.length === 0) {
       return apiError(
         403,
         "forbidden",
         "No tienes un departamento asignado para crear etapas"
       );
     }
-    targetDepartmentId = found.id;
-  }
 
-  const body = await parseBody(req, createSchema);
-  if (!body.ok) return body.response;
-
-  if (session.role === "owner" && body.data.departmentId) {
-    targetDepartmentId = body.data.departmentId;
+    const hasAccessToTarget = userDeps.some((d) => d.id === targetDepartmentId);
+    if (!hasAccessToTarget) {
+      targetDepartmentId = userDeps[0]!.id;
+    }
   }
 
   const maxPos = await db

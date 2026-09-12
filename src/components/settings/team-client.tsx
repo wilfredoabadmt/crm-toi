@@ -5,6 +5,7 @@ import { Check, Trash2, UserPlus, Users } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -36,7 +37,7 @@ export function TeamClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [assignments, setAssignments] = useState<
-    Record<string, { name: string; email: string }>
+    Record<string, { name: string; email: string; memberEmails: string[] }>
   >({});
   const [savingAssignments, setSavingAssignments] = useState(false);
   const [savedAssignments, setSavedAssignments] = useState(false);
@@ -57,9 +58,19 @@ export function TeamClient() {
         departments: DepartmentConfig[];
       };
       setDepartments(data.departments);
-      const initial: Record<string, { name: string; email: string }> = {};
+      const initial: Record<
+        string,
+        { name: string; email: string; memberEmails: string[] }
+      > = {};
       for (const d of data.departments) {
-        initial[d.id] = { name: d.assignedName, email: d.assignedEmail };
+        const assigned = d.assignedEmail?.trim().toLowerCase();
+        const existing = (d.memberEmails ?? []).map((e) => e.trim().toLowerCase());
+        const merged = Array.from(new Set([assigned, ...existing])).filter(Boolean);
+        initial[d.id] = {
+          name: d.assignedName,
+          email: d.assignedEmail,
+          memberEmails: merged,
+        };
       }
       setAssignments(initial);
     }
@@ -126,12 +137,51 @@ export function TeamClient() {
   }
 
   function handleAssignmentChange(depId: string, memberEmail: string) {
-    const member = members.find((m) => m.email === memberEmail);
+    const member = members.find((m) => m.email.toLowerCase() === memberEmail.toLowerCase());
     if (!member) return;
-    setAssignments((prev) => ({
-      ...prev,
-      [depId]: { name: member.name, email: member.email },
-    }));
+    setAssignments((prev) => {
+      const current = prev[depId] ?? { name: member.name, email: member.email, memberEmails: [] };
+      const updatedMembers = Array.from(
+        new Set([member.email.toLowerCase(), ...current.memberEmails])
+      );
+      return {
+        ...prev,
+        [depId]: {
+          name: member.name,
+          email: member.email,
+          memberEmails: updatedMembers,
+        },
+      };
+    });
+    setSavedAssignments(false);
+  }
+
+  function handleToggleMemberInDepartment(depId: string, memberEmail: string) {
+    const normalized = memberEmail.toLowerCase();
+    setAssignments((prev) => {
+      const current = prev[depId];
+      if (!current) return prev;
+      const set = new Set(current.memberEmails.map((e) => e.toLowerCase()));
+
+      // El titular no se puede desmarcar de su propio departamento
+      if (normalized === current.email.toLowerCase()) {
+        return prev;
+      }
+
+      if (set.has(normalized)) {
+        set.delete(normalized);
+      } else {
+        set.add(normalized);
+      }
+
+      return {
+        ...prev,
+        [depId]: {
+          ...current,
+          memberEmails: Array.from(set),
+        },
+      };
+    });
     setSavedAssignments(false);
   }
 
@@ -260,7 +310,7 @@ export function TeamClient() {
         })}
       </div>
 
-      {/* 3. Asignación de Responsables por Departamento */}
+      {/* 3. Asignación de Responsables y Equipo por Departamento */}
       {departments.length > 0 && (
         <Card>
           <CardHeader>
@@ -268,60 +318,160 @@ export function TeamClient() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-brand" />
-                  Responsables por Departamento
+                  Responsables y Equipo por Departamento
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Define quién atiende cada sección. La IA derivará las consultas y
-                  la bandeja se organizará según estos responsables.
+                  Define el titular y los miembros de apoyo de cada departamento. Si
+                  el titular no se encuentra en oficina, los demás miembros asignados
+                  recibirán alertas y podrán atender de inmediato en la bandeja.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
+            <div className="space-y-4">
               {departments.map((dep) => {
                 const current = assignments[dep.id] ?? {
                   name: dep.assignedName,
                   email: dep.assignedEmail,
+                  memberEmails: dep.memberEmails ?? [dep.assignedEmail],
                 };
+
+                const currentEmails = current.memberEmails ?? [];
 
                 return (
                   <div
                     key={dep.id}
-                    className="flex flex-col gap-2 rounded-lg border p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-lg border p-4 transition-all"
                     style={{
                       borderColor: `${dep.badgeColor}35`,
                       backgroundColor: `${dep.badgeColor}08`,
                     }}
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: dep.badgeColor }}
-                        />
-                        <p className="text-sm font-semibold">{dep.name}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: dep.badgeColor }}
+                          />
+                          <p className="text-sm font-semibold">{dep.name}</p>
+                          <span
+                            className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                            style={{
+                              backgroundColor: `${dep.badgeColor}22`,
+                              color: dep.badgeColor,
+                            }}
+                          >
+                            {dep.shortName}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {dep.description}
+                        </p>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {dep.description}
-                      </p>
+
+                      <div className="shrink-0 sm:w-64">
+                        <label
+                          htmlFor={`titular-${dep.id}`}
+                          className="block text-[11px] font-semibold text-muted-foreground mb-1"
+                        >
+                          Responsable titular:
+                        </label>
+                        <select
+                          id={`titular-${dep.id}`}
+                          aria-label={`Responsable de ${dep.name}`}
+                          value={current.email}
+                          onChange={(e) =>
+                            handleAssignmentChange(dep.id, e.target.value)
+                          }
+                          className="h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                        >
+                          {members.map((m) => (
+                            <option key={m.id} value={m.email}>
+                              {m.name} ({m.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div className="shrink-0 sm:w-64">
-                      <select
-                        aria-label={`Responsable de ${dep.name}`}
-                        value={current.email}
-                        onChange={(e) =>
-                          handleAssignmentChange(dep.id, e.target.value)
-                        }
-                        className="h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                      >
-                        {members.map((m) => (
-                          <option key={m.id} value={m.email}>
-                            {m.name} ({m.email})
-                          </option>
-                        ))}
-                      </select>
+                    {/* Selector de Miembros de apoyo para este departamento */}
+                    <div className="border-t border-border/40 pt-2.5">
+                      <p className="text-[11.5px] font-semibold text-foreground mb-1.5">
+                        Miembros asignados a este departamento:
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {members.map((m) => {
+                          const isTitular =
+                            m.email.toLowerCase() === current.email.toLowerCase();
+                          const isAssigned =
+                            isTitular ||
+                            currentEmails.some(
+                              (e) => e.toLowerCase() === m.email.toLowerCase()
+                            );
+
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                if (!isTitular) {
+                                  handleToggleMemberInDepartment(dep.id, m.email);
+                                }
+                              }}
+                              className={cn(
+                                "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-all",
+                                isAssigned
+                                  ? "bg-card border-primary/40 font-medium text-foreground shadow-2xs"
+                                  : "border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60"
+                              )}
+                              style={
+                                isAssigned
+                                  ? {
+                                      borderColor: `${dep.badgeColor}60`,
+                                      backgroundColor: `${dep.badgeColor}15`,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: isAssigned
+                                    ? dep.badgeColor
+                                    : "#9ca3af",
+                                }}
+                              />
+                              <span className="truncate">{m.name}</span>
+                              {isTitular ? (
+                                <span
+                                  className="ml-1 rounded px-1 py-0.2 text-[9.5px] font-bold"
+                                  style={{
+                                    backgroundColor: `${dep.badgeColor}30`,
+                                    color: dep.badgeColor,
+                                  }}
+                                >
+                                  Titular
+                                </span>
+                              ) : isAssigned ? (
+                                <span className="ml-0.5 text-xs text-primary font-bold">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="ml-0.5 text-xs text-muted-foreground opacity-50">
+                                  +
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-1.5 text-[10.5px] text-muted-foreground">
+                        Haz clic en un miembro para sumarlo o quitarlo del área.
+                        Todos los miembros marcados podrán ver y responder los chats
+                        de este departamento.
+                      </p>
                     </div>
                   </div>
                 );

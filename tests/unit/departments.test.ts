@@ -4,6 +4,7 @@ import {
   getDepartmentByStageName,
   buildDepartmentRoutingPrompt,
   resolveDepartmentIdForStage,
+  isUserInDepartment,
 } from "@/lib/departments";
 import { resolveStage } from "@/server/ai/actions";
 
@@ -116,6 +117,17 @@ describe("Configuración y utilidades de Departamentos", () => {
     expect(getDepartmentByStageName("Factura Emitida")?.id).toBe("administrativo");
     expect(getDepartmentByStageName("Nuevo Prospecto")?.id).toBe("comercial");
     expect(getDepartmentByStageName("En Análisis")?.id).toBe("gerencia");
+  });
+
+  it("isUserInDepartment debe verificar si un usuario pertenece al departamento por titular o por miembro de apoyo", () => {
+    const comercial = DEPARTMENTS.find((d) => d.id === "comercial")!;
+    // Titular principal (Andrea)
+    expect(isUserInDepartment("soyingridandrea@gmail.com", comercial)).toBe(true);
+    // Miembro de apoyo (Alejandro)
+    expect(isUserInDepartment("soyalejandrito2024@gmail.com", comercial)).toBe(true);
+    // Usuario no asignado
+    expect(isUserInDepartment("desconocido@toi.bo", comercial)).toBe(false);
+    expect(isUserInDepartment(null, comercial)).toBe(false);
   });
 });
 

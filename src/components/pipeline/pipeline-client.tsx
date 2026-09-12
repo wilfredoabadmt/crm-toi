@@ -29,6 +29,7 @@ import type { StageDto } from "@/lib/types";
 import {
   DEPARTMENTS,
   type DepartmentConfig,
+  isUserInDepartment,
   resolveDepartmentIdForStage,
 } from "@/lib/departments";
 import { cn } from "@/lib/utils";
@@ -80,8 +81,7 @@ export function PipelineClient({
           // Si el usuario es miembro, fijar su departamento
           if (!isOwner && normalizedEmail) {
             const myDept = data.departments.find(
-              (d: DepartmentConfig) =>
-                d.assignedEmail?.trim().toLowerCase() === normalizedEmail
+              (d: DepartmentConfig) => isUserInDepartment(normalizedEmail, d)
             );
             if (myDept) {
               setSelectedDeptId(myDept.id);
@@ -96,7 +96,7 @@ export function PipelineClient({
   useEffect(() => {
     if (!isOwner && normalizedEmail) {
       const myDept = departments.find(
-        (d) => d.assignedEmail?.trim().toLowerCase() === normalizedEmail
+        (d) => isUserInDepartment(normalizedEmail, d)
       );
       if (myDept) {
         setSelectedDeptId(myDept.id);
@@ -192,8 +192,8 @@ export function PipelineClient({
               (s) => resolveDepartmentIdForStage(s) === dept.id
             ).length;
 
-            if (!isOwner && dept.id !== selectedDeptId) {
-              return null; // El miembro solo ve su departamento asignado
+            if (!isOwner && !isUserInDepartment(normalizedEmail, dept)) {
+              return null; // El miembro solo ve departamentos a los que pertenece
             }
 
             return (

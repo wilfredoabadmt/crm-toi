@@ -4,6 +4,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 
+import { isUserInDepartment } from "@/lib/departments";
 import { getResolvedDepartments } from "@/server/departments";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +27,15 @@ async function checkMemberDepartmentAccess(
     .from(schema.user)
     .where(eq(schema.user.id, userId))
     .limit(1);
-  const userEmail = userRow[0]?.email?.toLowerCase();
+  const userEmail = userRow[0]?.email;
+  if (!userEmail) return false;
+
   const resolvedDeps = await getResolvedDepartments(organizationId);
-  const found = resolvedDeps.find(
-    (d) => d.assignedEmail?.toLowerCase() === userEmail
-  );
-  if (!found) return false;
-  return found.id === (stageDepartmentId ?? "comercial");
+  const targetId = stageDepartmentId ?? "comercial";
+  const targetDep = resolvedDeps.find((d) => d.id === targetId);
+  if (!targetDep) return false;
+
+  return isUserInDepartment(userEmail, targetDep);
 }
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {

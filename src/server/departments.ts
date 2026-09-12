@@ -77,7 +77,12 @@ export async function ensureDepartmentStages(organizationId: string) {
 
 export type DepartmentAssignmentMap = Record<
   string,
-  { name: string; email: string }
+  {
+    name: string;
+    email: string;
+    memberEmails?: string[];
+    members?: { name: string; email: string }[];
+  }
 >;
 
 /**
@@ -132,7 +137,7 @@ export async function saveDepartmentAssignments(
 
 /**
  * Retorna la lista de departamentos de la organización, incorporando
- * los responsables personalizados si fueron asignados.
+ * los responsables principales y los miembros adicionales asignados.
  */
 export async function getResolvedDepartments(
   organizationId?: string | null
@@ -142,10 +147,20 @@ export async function getResolvedDepartments(
   return DEPARTMENTS.map((d) => {
     const custom = assignments[d.id];
     if (custom && custom.name && custom.email) {
+      const allEmails = Array.from(
+        new Set([
+          custom.email.trim().toLowerCase(),
+          ...(custom.memberEmails ?? d.memberEmails ?? []).map((e) =>
+            e.trim().toLowerCase()
+          ),
+        ])
+      );
       return {
         ...d,
         assignedName: custom.name,
         assignedEmail: custom.email,
+        memberEmails: allEmails,
+        members: custom.members,
       };
     }
     return d;

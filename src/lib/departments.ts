@@ -12,8 +12,10 @@ export interface DepartmentConfig {
   id: string;
   name: string;
   shortName: string;
-  assignedName: string;
-  assignedEmail: string;
+  assignedName: string; // Responsable principal
+  assignedEmail: string; // Correo del responsable principal
+  memberEmails?: string[]; // Todos los correos de miembros habilitados en este departamento
+  members?: { name: string; email: string }[];
   badgeColor: string;
   icon: "building" | "credit-card" | "wrench" | "shopping-bag";
   description: string;
@@ -27,6 +29,7 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     shortName: "Técnico",
     assignedName: "Alvaro",
     assignedEmail: "amamani@toi.bo",
+    memberEmails: ["amamani@toi.bo"],
     badgeColor: "#0ea5e9", // Sky blue
     icon: "wrench",
     description: "Soporte técnico, cortes de fibra, caídas de servicio, lentitud, routers y averías.",
@@ -53,6 +56,7 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     shortName: "Administrativo",
     assignedName: "Janneth",
     assignedEmail: "jmamani@toi.bo",
+    memberEmails: ["jmamani@toi.bo"],
     badgeColor: "#f59e0b", // Amber
     icon: "credit-card",
     description: "Cobranzas, facturación, estados de cuenta, prórrogas, comprobantes y pagos.",
@@ -79,6 +83,7 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     shortName: "Comercial",
     assignedName: "Andrea",
     assignedEmail: "soyingridandrea@gmail.com",
+    memberEmails: ["soyingridandrea@gmail.com", "soyalejandrito2024@gmail.com"],
     badgeColor: "#10b981", // Emerald
     icon: "shopping-bag",
     description: "Ventas, nuevos planes de internet, contrataciones, cotizaciones y promociones.",
@@ -103,6 +108,7 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     shortName: "Gerencia",
     assignedName: "Wilfredo Abad",
     assignedEmail: "wilfredoabad@gmail.com",
+    memberEmails: ["wilfredoabad@gmail.com"],
     badgeColor: "#8b5cf6", // Purple
     icon: "building",
     description: "Reclamos formales graves, alianzas institucionales, dirección y gerencia general.",
@@ -118,6 +124,25 @@ export const DEPARTMENTS: DepartmentConfig[] = [
     ],
   },
 ];
+
+/**
+ * Determina si un usuario pertenece a un departamento específico
+ * (ya sea como responsable principal o como miembro de apoyo del área).
+ */
+export function isUserInDepartment(
+  userEmail: string | null | undefined,
+  department: DepartmentConfig
+): boolean {
+  if (!userEmail) return false;
+  const lower = userEmail.trim().toLowerCase();
+  if (department.assignedEmail?.trim().toLowerCase() === lower) {
+    return true;
+  }
+  if (department.memberEmails && Array.isArray(department.memberEmails)) {
+    return department.memberEmails.some((e) => e.trim().toLowerCase() === lower);
+  }
+  return false;
+}
 
 export const RECOMMENDED_DEPARTMENT_STAGES: Record<
   string,
