@@ -119,13 +119,104 @@ export const DEPARTMENTS: DepartmentConfig[] = [
   },
 ];
 
+export const RECOMMENDED_DEPARTMENT_STAGES: Record<
+  string,
+  { name: string; kind: "open" | "won" | "lost" }[]
+> = {
+  comercial: [
+    { name: "Nuevo Prospecto", kind: "open" },
+    { name: "Validación Cobertura", kind: "open" },
+    { name: "Plan Cotizado", kind: "open" },
+    { name: "Instalación Programada", kind: "open" },
+    { name: "Cliente Activo", kind: "won" },
+    { name: "Venta Perdida", kind: "lost" },
+  ],
+  tecnico: [
+    { name: "Reporte Recibido", kind: "open" },
+    { name: "Diagnóstico Remoto", kind: "open" },
+    { name: "Visita en Terreno", kind: "open" },
+    { name: "Caso Resuelto", kind: "won" },
+    { name: "Escalado a Red", kind: "lost" },
+  ],
+  administrativo: [
+    { name: "Factura Emitida", kind: "open" },
+    { name: "Recordatorio Enviado", kind: "open" },
+    { name: "Comprobante por Verificar", kind: "open" },
+    { name: "Al Día", kind: "won" },
+    { name: "Corte por Mora", kind: "lost" },
+  ],
+  gerencia: [
+    { name: "Caso Recibido", kind: "open" },
+    { name: "En Análisis", kind: "open" },
+    { name: "Propuesta / Acuerdo", kind: "open" },
+    { name: "Cerrado Concluido", kind: "won" },
+  ],
+};
+
+/**
+ * Resuelve el identificador de departamento para una etapa dada.
+ */
+export function resolveDepartmentIdForStage(stage: {
+  name: string;
+  departmentId?: string | null;
+}): string {
+  if (stage.departmentId) return stage.departmentId;
+  const lower = stage.name.trim().toLowerCase();
+
+  // 1. Revisar si coincide con alguna etapa recomendada
+  for (const [depId, stagesList] of Object.entries(RECOMMENDED_DEPARTMENT_STAGES)) {
+    if (stagesList.some((s) => s.name.toLowerCase() === lower)) {
+      return depId;
+    }
+  }
+
+  // 2. Revisar palabras clave específicas
+  if (
+    lower.includes("tecnico") ||
+    lower.includes("técnico") ||
+    lower.includes("soporte") ||
+    lower.includes("avería") ||
+    lower.includes("falla") ||
+    lower.includes("diagnóstico") ||
+    lower.includes("terreno") ||
+    lower.includes("fibra") ||
+    lower.includes("router") ||
+    (lower.includes("corte") && !lower.includes("mora"))
+  ) {
+    return "tecnico";
+  }
+  if (
+    lower.includes("administrativo") ||
+    lower.includes("cobranza") ||
+    lower.includes("factura") ||
+    lower.includes("pago") ||
+    lower.includes("mora") ||
+    lower.includes("comprobante")
+  ) {
+    return "administrativo";
+  }
+  if (
+    lower.includes("gerencia") ||
+    lower.includes("director") ||
+    lower.includes("ejecutivo")
+  ) {
+    return "gerencia";
+  }
+  return "comercial";
+}
+
 /**
  * Encuentra el departamento asociado al nombre de etapa del pipeline.
  */
 export function getDepartmentByStageName(
   stageName: string | null | undefined,
-  departments: DepartmentConfig[] = DEPARTMENTS
+  departments: DepartmentConfig[] = DEPARTMENTS,
+  departmentId?: string | null
 ): DepartmentConfig | null {
+  if (departmentId) {
+    const found = departments.find((d) => d.id === departmentId);
+    if (found) return found;
+  }
   if (!stageName) return null;
   const lower = stageName.trim().toLowerCase();
 
@@ -139,6 +230,14 @@ export function getDepartmentByStageName(
       return dep;
     }
   }
+
+  // Buscar coincidencia en las etapas recomendadas de cada departamento
+  for (const [depId, stagesList] of Object.entries(RECOMMENDED_DEPARTMENT_STAGES)) {
+    if (stagesList.some((s) => s.name.toLowerCase() === lower)) {
+      return departments.find((d) => d.id === depId) ?? null;
+    }
+  }
+
   return null;
 }
 

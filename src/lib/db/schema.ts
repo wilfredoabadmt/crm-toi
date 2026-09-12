@@ -132,6 +132,7 @@ export const pipelineStage = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
+    departmentId: text("department_id"),
     name: text("name").notNull(),
     position: integer("position").notNull(),
     /** open = etapa normal · won / lost = anclas no borrables */
@@ -140,7 +141,10 @@ export const pipelineStage = pgTable(
       .default("open"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("stage_org_pos_idx").on(t.organizationId, t.position)]
+  (t) => [
+    index("stage_org_pos_idx").on(t.organizationId, t.position),
+    index("stage_org_dep_idx").on(t.organizationId, t.departmentId),
+  ]
 );
 
 export const lead = pgTable(

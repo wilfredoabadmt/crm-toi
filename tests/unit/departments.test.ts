@@ -3,6 +3,7 @@ import {
   DEPARTMENTS,
   getDepartmentByStageName,
   buildDepartmentRoutingPrompt,
+  resolveDepartmentIdForStage,
 } from "@/lib/departments";
 import { resolveStage } from "@/server/ai/actions";
 
@@ -97,4 +98,24 @@ describe("Configuración y utilidades de Departamentos", () => {
     expect(prompt).toContain("Andrea");
     expect(prompt).toContain("Wilfredo Abad");
   });
+
+  it("resolveDepartmentIdForStage debe asignar correctamente las etapas a su departamento correspondiente", () => {
+    expect(resolveDepartmentIdForStage({ name: "Diagnóstico Remoto" })).toBe("tecnico");
+    expect(resolveDepartmentIdForStage({ name: "Visita en Terreno" })).toBe("tecnico");
+    expect(resolveDepartmentIdForStage({ name: "Corte de fibra" })).toBe("tecnico");
+    expect(resolveDepartmentIdForStage({ name: "Factura Emitida" })).toBe("administrativo");
+    expect(resolveDepartmentIdForStage({ name: "Corte por Mora" })).toBe("administrativo");
+    expect(resolveDepartmentIdForStage({ name: "Comprobante por Verificar" })).toBe("administrativo");
+    expect(resolveDepartmentIdForStage({ name: "Caso Recibido", departmentId: "gerencia" })).toBe("gerencia");
+    expect(resolveDepartmentIdForStage({ name: "Nuevo Prospecto" })).toBe("comercial");
+    expect(resolveDepartmentIdForStage({ name: "Plan Cotizado" })).toBe("comercial");
+  });
+
+  it("getDepartmentByStageName debe identificar etapas recomendadas de departamentos", () => {
+    expect(getDepartmentByStageName("Visita en Terreno")?.id).toBe("tecnico");
+    expect(getDepartmentByStageName("Factura Emitida")?.id).toBe("administrativo");
+    expect(getDepartmentByStageName("Nuevo Prospecto")?.id).toBe("comercial");
+    expect(getDepartmentByStageName("En Análisis")?.id).toBe("gerencia");
+  });
 });
+

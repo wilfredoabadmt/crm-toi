@@ -2,11 +2,16 @@ import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { DEPARTMENTS, type DepartmentConfig } from "@/lib/departments";
+import {
+  DEPARTMENTS,
+  RECOMMENDED_DEPARTMENT_STAGES,
+  resolveDepartmentIdForStage,
+  type DepartmentConfig,
+} from "@/lib/departments";
 
 /**
- * Asegura que los 4 departamentos oficiales existan en la base de datos
- * como etapas del pipeline para la organización especificada.
+ * Asegura que existan las etapas por departamento en la base de datos
+ * para la organización especificada, asignando departmentId.
  */
 export async function ensureDepartmentStages(organizationId: string) {
   const db = getDb();
@@ -16,23 +21,50 @@ export async function ensureDepartmentStages(organizationId: string) {
     .where(scoped(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
 
-  const existingNames = new Set(stages.map((s) => s.name.toLowerCase()));
-  const missingDeps = DEPARTMENTS.filter(
-    (d) => !existingNames.has(d.name.toLowerCase())
-  );
-
-  if (missingDeps.length > 0) {
-    const maxPos = stages.length > 0 ? Math.max(...stages.map((s) => s.position)) : -1;
-    for (let i = 0; i < missingDeps.length; i++) {
-      const dep = missingDeps[i]!;
-      await db.insert(schema.pipelineStage).values({
-        id: newId("stage"),
-        organizationId,
-        name: dep.name,
-        position: maxPos + 1 + i,
-        kind: "open",
-      });
+  // 1. Asignar departmentId a etapas existentes que aún no lo tengan
+  for (const s of stages) {
+    if (!s.departmentId) {
+      const resolvedDepId = resolveDepartmentIdForStage(s);
+      await db
+        .update(schema.pipelineStage)
+        .set({ departmentId: resolvedDepId })
+        .where(eq(schema.pipelineStage.id, s.id));
+      s.departmentId = resolvedDepId;
     }
+  }
+
+  // 2. Verificar que cada departamento cuente con sus etapas especializadas
+  let maxPos = stages.length > 0 ? Math.max(...stages.map((s) => s.position)) : -1;
+  let addedAny = false;
+
+  for (const dep of DEPARTMENTS) {
+    const existingInDep = stages.filter((s) => s.departmentId === dep.id);
+    const hasOnlyLegacySingleStage =
+      existingInDep.length === 1 &&
+      (existingInDep[0]!.name.toLowerCase() === dep.name.toLowerCase() ||
+        existingInDep[0]!.name.toLowerCase() === dep.shortName.toLowerCase());
+
+    if (existingInDep.length === 0 || hasOnlyLegacySingleStage) {
+      const recommended = RECOMMENDED_DEPARTMENT_STAGES[dep.id] ?? [];
+      for (const item of recommended) {
+        if (stages.some((s) => s.name.toLowerCase() === item.name.toLowerCase() && s.departmentId === dep.id)) {
+          continue;
+        }
+        maxPos += 1;
+        await db.insert(schema.pipelineStage).values({
+          id: newId("stage"),
+          organizationId,
+          departmentId: dep.id,
+          name: item.name,
+          position: maxPos,
+          kind: item.kind,
+        });
+        addedAny = true;
+      }
+    }
+  }
+
+  if (addedAny) {
     stages = await db
       .select()
       .from(schema.pipelineStage)

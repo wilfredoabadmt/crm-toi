@@ -4,6 +4,8 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 
+import { getResolvedDepartments } from "@/server/departments";
+
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
@@ -13,19 +15,60 @@ const patchSchema = z.object({
   position: z.number().int().min(0).optional(),
 });
 
+async function checkMemberDepartmentAccess(
+  organizationId: string,
+  userId: string,
+  stageDepartmentId?: string | null
+): Promise<boolean> {
+  const db = getDb();
+  const userRow = await db
+    .select({ email: schema.user.email })
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+    .limit(1);
+  const userEmail = userRow[0]?.email?.toLowerCase();
+  const resolvedDeps = await getResolvedDepartments(organizationId);
+  const found = resolvedDeps.find(
+    (d) => d.assignedEmail?.toLowerCase() === userEmail
+  );
+  if (!found) return false;
+  return found.id === (stageDepartmentId ?? "comercial");
+}
+
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
-  if (session.role !== "owner") {
-    return apiError(
-      403,
-      "forbidden",
-      "Solo el propietario puede modificar etapas del pipeline"
-    );
-  }
   const { id } = await ctx.params;
+  const db = getDb();
+  const existing = await db
+    .select()
+    .from(schema.pipelineStage)
+    .where(
+      scoped(
+        schema.pipelineStage.organizationId,
+        session.organizationId,
+        eq(schema.pipelineStage.id, id)
+      )
+    )
+    .limit(1);
+  if (!existing[0]) return apiError(404, "not_found", "Etapa no encontrada");
+
+  if (session.role !== "owner") {
+    const hasAccess = await checkMemberDepartmentAccess(
+      session.organizationId,
+      session.userId,
+      existing[0].departmentId
+    );
+    if (!hasAccess) {
+      return apiError(
+        403,
+        "forbidden",
+        "Solo puedes modificar etapas de tu departamento asignado"
+      );
+    }
+  }
+
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
 
-  const db = getDb();
   const updated = await db
     .update(schema.pipelineStage)
     .set({
@@ -47,17 +90,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 });
 
 export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
-  if (session.role !== "owner") {
-    return apiError(
-      403,
-      "forbidden",
-      "Solo el propietario puede eliminar etapas del pipeline"
-    );
-  }
   const { id } = await ctx.params;
-  const url = new URL(req.url);
-  const moveTo = url.searchParams.get("moveTo");
-
   const db = getDb();
   const rows = await db
     .select()
@@ -72,6 +105,25 @@ export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
     .limit(1);
   const stage = rows[0];
   if (!stage) return apiError(404, "not_found", "Etapa no encontrada");
+
+  if (session.role !== "owner") {
+    const hasAccess = await checkMemberDepartmentAccess(
+      session.organizationId,
+      session.userId,
+      stage.departmentId
+    );
+    if (!hasAccess) {
+      return apiError(
+        403,
+        "forbidden",
+        "Solo puedes eliminar etapas de tu departamento asignado"
+      );
+    }
+  }
+
+  const url = new URL(req.url);
+  const moveTo = url.searchParams.get("moveTo");
+
   if (stage.kind !== "open") {
     return apiError(
       409,

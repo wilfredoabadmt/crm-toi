@@ -10,10 +10,14 @@ import { Input } from "@/components/ui/input";
 /** Gestión de etapas: renombrar, reordenar, agregar, eliminar (con reasignación). */
 export function StageManager({
   stages,
+  departmentId,
+  departmentName,
   onClose,
   onChanged,
 }: {
   stages: StageDto[];
+  departmentId?: string;
+  departmentName?: string;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -57,7 +61,10 @@ export function StageManager({
     await fetch("/api/pipeline/stages", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
+      body: JSON.stringify({
+        name: newName.trim(),
+        departmentId: departmentId ?? "comercial",
+      }),
     }).catch(() => null);
     setNewName("");
     onChanged();
@@ -97,7 +104,9 @@ export function StageManager({
         className="w-full max-w-lg rounded-lg border bg-card p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-4 font-semibold">Etapas del pipeline</h3>
+        <h3 className="mb-4 font-semibold">
+          Etapas del pipeline {departmentName ? `— ${departmentName}` : ""}
+        </h3>
         <ul className="space-y-2">
           {sorted.map((s, i) => (
             <li key={s.id} className="flex items-center gap-2">

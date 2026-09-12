@@ -36,12 +36,13 @@ export const GET = withAuth(async (session) => {
 
   return Response.json({
     stages: stages.map((s) => {
-      const dep = getDepartmentByStageName(s.name, departments);
+      const dep = getDepartmentByStageName(s.name, departments, s.departmentId);
       return {
         id: s.id,
         name: s.name,
         position: s.position,
         kind: s.kind,
+        departmentId: dep?.id ?? s.departmentId ?? "comercial",
         assignedName: dep?.assignedName ?? null,
         assignedEmail: dep?.assignedEmail ?? null,
         badgeColor: dep?.badgeColor ?? null,
