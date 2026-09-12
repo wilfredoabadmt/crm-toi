@@ -276,14 +276,21 @@ export function PipelineClient({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-md border bg-card/80 px-3 py-1 shadow-2xs">
-            <User className="h-3.5 w-3.5 text-muted-foreground" />
-            <div className="text-right">
-              <div className="font-semibold text-foreground text-[11.5px]">
-                {currentDept.assignedName}
-              </div>
-              <div className="text-[10.5px] text-muted-foreground">
-                {currentDept.assignedEmail}
+          <div className="flex items-center gap-2">
+            {!isOwner && isUserInDepartment(normalizedEmail, currentDept) && (
+              <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 shadow-2xs">
+                ✓ Tu área asignada
+              </span>
+            )}
+            <div className="flex items-center gap-2 rounded-md border bg-card/80 px-3 py-1 shadow-2xs">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <div className="text-right">
+                <div className="font-semibold text-foreground text-[11.5px]">
+                  {currentDept.assignedName}
+                </div>
+                <div className="text-[10.5px] text-muted-foreground">
+                  {currentDept.assignedEmail}
+                </div>
               </div>
             </div>
           </div>

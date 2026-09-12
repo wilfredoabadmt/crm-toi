@@ -160,6 +160,9 @@ export function TeamClient() {
     if (res?.ok) {
       setSavedAssignments(true);
       if (successMsg) showFeedback(successMsg);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("departments-updated"));
+      }
       void refetch();
       setTimeout(() => setSavedAssignments(false), 3000);
     } else {

@@ -132,14 +132,17 @@ export function ConversationList({
   const filterTabs =
     !isOwner && myDepartments.length > 0
       ? [
-          ...myDepartments.map((d) => ({
-            id: d.id,
-            label: `${d.shortName} (${d.assignedName})`,
-            count: searched.filter(
-              (c) => getDepartmentByStageName(c.stageName, departments)?.id === d.id
-            ).length,
-            color: d.badgeColor,
-          })),
+          ...myDepartments.map((d) => {
+            const isTitular = d.assignedEmail.toLowerCase() === userEmail;
+            return {
+              id: d.id,
+              label: isTitular ? `${d.shortName} (Titular)` : d.shortName,
+              count: searched.filter(
+                (c) => getDepartmentByStageName(c.stageName, departments)?.id === d.id
+              ).length,
+              color: d.badgeColor,
+            };
+          }),
           { id: "unread", label: "No leídas", count: unreadCount },
         ]
       : [
@@ -180,6 +183,36 @@ export function ConversationList({
             className="w-full bg-transparent text-[13px] outline-none placeholder:text-text-3"
           />
         </div>
+
+        {/* Indicador de Área asignada para cuentas personales */}
+        {!isOwner && myDepartments.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] text-muted-foreground">Tu área de atención:</span>
+            {myDepartments.map((d) => {
+              const isTitular = d.assignedEmail.toLowerCase() === userEmail;
+              return (
+                <span
+                  key={d.id}
+                  className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold"
+                  style={{
+                    backgroundColor: `${d.badgeColor}18`,
+                    color: d.badgeColor,
+                    border: `1px solid ${d.badgeColor}35`,
+                  }}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: d.badgeColor }}
+                  />
+                  {d.name}
+                  {isTitular && (
+                    <span className="opacity-80 text-[9px]">(Titular)</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       <div className="flex gap-1.5 overflow-x-auto border-b px-4 py-2.5 scrollbar-none">
