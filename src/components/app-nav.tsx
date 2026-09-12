@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
+  BellOff,
   CheckSquare,
   FlaskConical,
   Inbox,
@@ -13,11 +15,21 @@ import {
   Settings,
   Sparkles,
   Users,
+  Volume2,
 } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { useEvents } from "@/components/use-events";
+import {
+  alertSound,
+  getDesktopNotificationPermission,
+  isSoundAlertEnabled,
+  requestDesktopNotificationPermission,
+  setSoundAlertEnabled,
+  showDesktopNotification,
+  type NotificationPermissionState,
+} from "@/lib/sound-notifications";
 
 const NAV = [
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
@@ -41,12 +53,43 @@ export function AppNav({
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
+  const [soundEnabled, setSoundState] = useState(true);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermissionState>("default");
+
+  useEffect(() => {
+    setSoundState(isSoundAlertEnabled());
+    setNotifPermission(getDesktopNotificationPermission());
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    const next = !soundEnabled;
+    setSoundState(next);
+    setSoundAlertEnabled(next);
+    if (next) {
+      alertSound.playChime(true);
+    }
+  }, [soundEnabled]);
+
+  const enableDesktopAlerts = useCallback(async () => {
+    const perm = await requestDesktopNotificationPermission();
+    setNotifPermission(perm);
+    setSoundState(true);
+    setSoundAlertEnabled(true);
+    alertSound.playChime(true);
+    if (perm === "granted") {
+      showDesktopNotification({
+        title: "🔔 Alertas TOI CRM activadas",
+        body: "Recibirás avisos sonoros y notificaciones cada vez que un cliente requiera atención inmediata.",
+        onClickUrl: "/inbox",
+      });
+    }
+  }, []);
 
   async function refetchUnread() {
     const res = await fetch("/api/conversations").catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json()) as {
-      conversations: { unreadCount: number }[];
+      conversations: { id: string; unreadCount: number; contact: { name: string }; preview?: string }[];
     };
     setUnread(data.conversations.reduce((a, c) => a + c.unreadCount, 0));
   }
@@ -56,8 +99,34 @@ export function AppNav({
   }, []);
 
   useEvents({
-    onMessageNew: () => void refetchUnread(),
-    onConversationUpdated: () => void refetchUnread(),
+    onMessageNew: (d) => {
+      void refetchUnread();
+      const msg = d.message as { direction?: string; text?: string } | undefined;
+      if (msg?.direction === "in") {
+        if (soundEnabled) {
+          alertSound.playChime();
+        }
+        showDesktopNotification({
+          title: "🚨 Cliente en línea (Atención requerida)",
+          body: msg.text ? msg.text.slice(0, 100) : "Nuevo mensaje recibido de un cliente",
+          onClickUrl: "/inbox",
+        });
+      }
+    },
+    onConversationUpdated: (d) => {
+      void refetchUnread();
+      const conv = (d as { conversation?: { handoffReason?: string } })?.conversation;
+      if (conv?.handoffReason) {
+        if (soundEnabled) {
+          alertSound.playChime(true);
+        }
+        showDesktopNotification({
+          title: "🚨 Cliente transferido a Atención Humana",
+          body: "Un cliente ha sido derivado a tu departamento para atención inmediata.",
+          onClickUrl: "/inbox",
+        });
+      }
+    },
   });
 
   return (
@@ -117,6 +186,47 @@ export function AppNav({
       </nav>
 
       <div className="flex-1" />
+
+      {/* Control de alertas sonoras y notificaciones */}
+      <div className="mb-2 rounded-md border border-border/70 bg-card/50 p-2 text-xs shadow-2xs">
+        <div className="flex items-center justify-between gap-1.5">
+          <button
+            type="button"
+            onClick={toggleSound}
+            title={soundEnabled ? "Silenciar sonido" : "Activar sonido de timbre"}
+            className="flex items-center gap-1.5 text-text-2 hover:text-foreground transition-colors"
+          >
+            {soundEnabled ? (
+              <Bell className="h-3.5 w-3.5 text-brand" />
+            ) : (
+              <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className="font-medium text-[11px]">
+              {soundEnabled ? "Timbre activo" : "Silenciado"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => alertSound.playChime(true)}
+            title="Probar timbre"
+            className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-text-3 hover:bg-accent hover:text-foreground transition-colors"
+          >
+            Probar
+          </button>
+        </div>
+
+        {notifPermission !== "granted" && (
+          <button
+            type="button"
+            onClick={() => void enableDesktopAlerts()}
+            className="mt-1.5 flex w-full items-center justify-center gap-1 rounded bg-brand/10 px-2 py-1 text-[10.5px] font-semibold text-brand hover:bg-brand/20 transition-colors"
+          >
+            <Volume2 className="h-3 w-3" />
+            <span>Activar avisos de PC</span>
+          </button>
+        )}
+      </div>
 
       {role === "owner" && (
         <Link
