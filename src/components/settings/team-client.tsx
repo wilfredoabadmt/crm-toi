@@ -181,45 +181,88 @@ export function TeamClient() {
     });
   }
 
-  /** Cambia el titular de un departamento */
+  /** Cambia el titular de un departamento y lo retira de otras áreas para evitar duplicados */
   function handleTitularChange(depId: string, memberEmail: string) {
     const member = members.find((m) => m.email.toLowerCase() === memberEmail.toLowerCase());
     if (!member) return;
+    const lower = member.email.toLowerCase();
 
-    const current = assignments[depId] ?? { name: member.name, email: member.email, memberEmails: [] };
-    const updatedEmails = Array.from(
-      new Set([member.email.toLowerCase(), ...current.memberEmails])
-    );
-    const updated = {
-      ...assignments,
-      [depId]: {
-        name: member.name,
-        email: member.email,
-        memberEmails: updatedEmails,
-      },
-    };
-    void persistAssignments(updated, `Titular de ${depId} actualizado a ${member.name}`);
+    // Validar si ya es titular de OTRO departamento
+    const otherTitularDep = departments.find((d) => {
+      if (d.id === depId) return false;
+      const assign = assignments[d.id];
+      return assign && assign.email.toLowerCase() === lower;
+    });
+
+    if (otherTitularDep) {
+      alert(
+        `"${member.name}" ya es el Responsable Titular de ${otherTitularDep.name}.\n\nPrimero debes nombrar a otro titular en ${otherTitularDep.shortName} antes de asignarlo como titular de esta área.`
+      );
+      return;
+    }
+
+    const updated: typeof assignments = {};
+    for (const [dId, val] of Object.entries(assignments)) {
+      if (dId === depId) {
+        const updatedEmails = Array.from(new Set([lower, ...val.memberEmails]));
+        updated[dId] = {
+          name: member.name,
+          email: member.email,
+          memberEmails: updatedEmails,
+        };
+      } else {
+        // Retirar de cualquier otro departamento para garantizar exclusividad de 1 área por persona
+        updated[dId] = {
+          ...val,
+          memberEmails: val.memberEmails.filter((e) => e.toLowerCase() !== lower),
+        };
+      }
+    }
+
+    const depName = departments.find((d) => d.id === depId)?.name ?? depId;
+    void persistAssignments(updated, `Titular de ${depName} actualizado a ${member.name}`);
   }
 
-  /** Agrega a un miembro a un departamento */
+  /** Agrega a un miembro a un departamento, removiéndolo de cualquier otra área previa */
   function handleAddMemberToDepartment(depId: string, memberEmail: string) {
     const lower = memberEmail.trim().toLowerCase();
     const current = assignments[depId];
     if (!current) return;
 
     const member = members.find((m) => m.email.toLowerCase() === lower);
-    const set = new Set(current.memberEmails.map((e) => e.toLowerCase()));
-    set.add(lower);
+    const depConfig = departments.find((d) => d.id === depId);
+    const depName = depConfig?.shortName ?? depId;
 
-    const updated = {
-      ...assignments,
-      [depId]: {
-        ...current,
-        memberEmails: Array.from(set),
-      },
-    };
-    const depName = departments.find((d) => d.id === depId)?.name ?? depId;
-    void persistAssignments(updated, `${member?.name ?? memberEmail} agregado a ${depName}`);
+    // Si es titular en otra área, advertir
+    const otherTitularDep = departments.find((d) => {
+      if (d.id === depId) return false;
+      const assign = assignments[d.id];
+      return assign && assign.email.toLowerCase() === lower;
+    });
+
+    if (otherTitularDep) {
+      alert(
+        `"${member?.name ?? memberEmail}" es el Responsable Titular de ${otherTitularDep.name}.\n\nPrimero debes nombrar a otro titular en ${otherTitularDep.shortName} antes de moverlo a esta área.`
+      );
+      return;
+    }
+
+    // Mover limpiamente a esta área y quitar de cualquier otra
+    const updated: typeof assignments = {};
+    for (const [dId, val] of Object.entries(assignments)) {
+      if (dId === depId) {
+        const set = new Set(val.memberEmails.map((e) => e.toLowerCase()));
+        set.add(lower);
+        updated[dId] = { ...val, memberEmails: Array.from(set) };
+      } else {
+        updated[dId] = {
+          ...val,
+          memberEmails: val.memberEmails.filter((e) => e.toLowerCase() !== lower),
+        };
+      }
+    }
+
+    void persistAssignments(updated, `${member?.name ?? memberEmail} asignado a ${depName}`);
   }
 
   /** Elimina a un miembro de un departamento específico */
