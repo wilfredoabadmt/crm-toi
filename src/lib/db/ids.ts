@@ -24,6 +24,9 @@ const prefixes = {
   campaign: "camp",
   campaignRecipient: "rcpt",
   appointment: "appt",
+  tag: "tag",
+  contactTag: "ctag",
+  quickReply: "qr",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
