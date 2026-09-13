@@ -1,3 +1,6 @@
 {
-  "feature_directory": "specs/003-campaigns-reminders"
+  "feature": "004-appointments-calendar",
+  "title": "Módulo de Agenda, Visitas Técnicas y Citas con Agente IA y Confirmación Multimedia",
+  "created_at": "2026-09-13T03:13:00Z",
+  "status": "specifying"
 }
