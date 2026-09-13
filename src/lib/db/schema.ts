@@ -191,6 +191,7 @@ export const conversation = pgTable(
     lastInboundAt: timestamp("last_inbound_at"),
     lastMessageAt: timestamp("last_message_at"),
     unreadCount: integer("unread_count").notNull().default(0),
+    lastAwayMessageAt: timestamp("last_away_message_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -733,5 +734,56 @@ export const quickReply = pgTable(
       t.shortcut
     ),
     index("quick_reply_org_idx").on(t.organizationId),
+  ]
+);
+
+/* ============================================================
+ * Horarios de Atención (Business Hours)
+ * ============================================================ */
+
+export const businessSchedule = pgTable(
+  "business_schedule",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    timezone: text("timezone").notNull().default("America/La_Paz"),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    outOfHoursAction: text("out_of_hours_action", {
+      enum: ["none", "away_message", "ai_takeover", "both"],
+    })
+      .notNull()
+      .default("away_message"),
+    awayMessage: text("away_message").default(
+      "¡Hola {{1}}! Nuestro horario de atención es de Lunes a Viernes de 8:30 a 18:30. En este momento el equipo se encuentra fuera de oficina, pero te responderemos a primera hora."
+    ),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("business_schedule_org_uq").on(t.organizationId),
+  ]
+);
+
+export const businessScheduleDay = pgTable(
+  "business_schedule_day",
+  {
+    id: text("id").primaryKey(),
+    scheduleId: text("schedule_id")
+      .notNull()
+      .references(() => businessSchedule.id, { onDelete: "cascade" }),
+    dayOfWeek: integer("day_of_week").notNull(), // 1=Lunes .. 7=Domingo
+    isOpen: boolean("is_open").notNull().default(true),
+    openTime1: text("open_time_1").notNull().default("08:30"),
+    closeTime1: text("close_time_1").notNull().default("12:30"),
+    openTime2: text("open_time_2").default("14:30"),
+    closeTime2: text("close_time_2").default("18:30"),
+  },
+  (t) => [
+    uniqueIndex("business_schedule_day_sched_dow_uq").on(
+      t.scheduleId,
+      t.dayOfWeek
+    ),
   ]
 );

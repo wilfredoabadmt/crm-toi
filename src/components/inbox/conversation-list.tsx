@@ -14,6 +14,7 @@ import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import type { CurrentUserProp } from "./inbox-client";
+import { ScheduleStatusBadge } from "./schedule-status-badge";
 
 const STAGE_DOT: Record<string, string> = {
   Nuevo: "#9ca3af",
@@ -170,9 +171,12 @@ export function ConversationList({
   return (
     <div className="flex h-full flex-col">
       <header className="border-b px-4 pb-3 pt-4">
-        <div className="mb-3 flex items-baseline gap-2">
-          <h2 className="text-[17px] font-[650] tracking-tight">Bandeja</h2>
-          <span className="text-sm text-text-3">{conversations.length}</span>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-[17px] font-[650] tracking-tight">Bandeja</h2>
+            <span className="text-sm text-text-3">{conversations.length}</span>
+          </div>
+          <ScheduleStatusBadge />
         </div>
         <div className="flex items-center gap-2 rounded-md border bg-secondary px-3 py-[7px] transition-colors focus-within:border-brand focus-within:bg-background focus-within:ring-[3px] focus-within:ring-brand-soft">
           <Search className="h-4 w-4 shrink-0 text-text-3" strokeWidth={1.7} />

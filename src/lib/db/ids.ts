@@ -27,6 +27,8 @@ const prefixes = {
   tag: "tag",
   contactTag: "ctag",
   quickReply: "qr",
+  businessSchedule: "bsched",
+  businessScheduleDay: "bsday",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

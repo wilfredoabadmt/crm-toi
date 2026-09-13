@@ -10,6 +10,7 @@ const TABS = [
   { href: "/settings/templates", label: "Plantillas" },
   { href: "/settings/tags", label: "Etiquetas (Tags)" },
   { href: "/settings/quick-replies", label: "Respuestas Rápidas" },
+  { href: "/settings/business-hours", label: "Horarios de Atención" },
   { href: "/settings/team", label: "Equipo" },
 ] as const;
 
