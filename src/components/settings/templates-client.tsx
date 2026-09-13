@@ -188,13 +188,14 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           <div className="space-y-4 md:col-span-7">
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5 sm:col-span-1">
-                <Label htmlFor="tpl-name">Nombre</Label>
+                <Label htmlFor="tpl-name">Nombre de plantilla</Label>
                 <Input
                   id="tpl-name"
-                  placeholder="seguimiento_cotizacion"
+                  placeholder="aviso_pago_pendiente"
                   value={name}
                   onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "_"))}
                 />
+                <p className="text-[10px] text-muted-foreground">Minúsculas y guiones bajos (_)</p>
               </div>
               <div className="space-y-1.5 sm:col-span-1">
                 <Label htmlFor="tpl-lang">Idioma</Label>
@@ -202,28 +203,53 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
                   id="tpl-lang"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-xs"
                 >
-                  <option value="es_MX">es_MX (Latam)</option>
-                  <option value="es">es (Español)</option>
-                  <option value="es_AR">es_AR (Argentina)</option>
-                  <option value="en_US">en_US (Inglés)</option>
+                  <option value="es">Español (es) — Estándar recomendado</option>
+                  <option value="es_LA">Español Latinoamericano (es_LA)</option>
+                  <option value="es_MX">Español México (es_MX)</option>
+                  <option value="en_US">Inglés (en_US)</option>
                 </select>
+                <p className="text-[10px] text-muted-foreground">Usa <b>es</b> si operas en Bolivia/Latam</p>
               </div>
               <div className="space-y-1.5 sm:col-span-1">
-                <Label htmlFor="tpl-cat">Categoría</Label>
+                <Label htmlFor="tpl-cat">Categoría Meta</Label>
                 <select
                   id="tpl-cat"
                   value={category}
                   onChange={(e) =>
                     setCategory(e.target.value as "UTILITY" | "MARKETING")
                   }
-                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="flex h-9 w-full rounded-md border border-input bg-card px-3 text-xs"
                 >
-                  <option value="UTILITY">UTILITY (seguimiento)</option>
-                  <option value="MARKETING">MARKETING</option>
+                  <option value="UTILITY">UTILIDAD (Recordatorios, Avisos, Citas)</option>
+                  <option value="MARKETING">MARKETING (Ofertas, Promociones, Ventas)</option>
                 </select>
+                <p className="text-[10px] text-muted-foreground">
+                  {category === "UTILITY" ? "Avisos de servicio o seguimiento." : "Promociones masivas y ofertas."}
+                </p>
               </div>
+            </div>
+
+            {/* Guía rápida de variables para el usuario */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-primary flex items-center gap-1.5">
+                  💡 ¿Cómo usar las variables en este CRM?
+                </span>
+                <span className="text-[10px] text-muted-foreground">Secuencia obligatoria</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground text-[11px] leading-relaxed">
+                <li>
+                  <strong className="text-foreground">{"{{1}}"}</strong>: Se reserva habitualmente para el <strong>nombre del cliente</strong> (el CRM y las campañas pueden completarlo en automático).
+                </li>
+                <li>
+                  <strong className="text-foreground">{"{{2}}"}, {"{{3}}"}, {"{{4}}"}</strong>: Para datos variables como fecha, monto, servicio o código de ticket.
+                </li>
+                <li>
+                  <strong className="text-foreground">Regla de Meta:</strong> No dejes espacios dentro de las llaves ni comiences/termines el mensaje únicamente con una variable.
+                </li>
+              </ul>
             </div>
 
             <div className="space-y-1.5">
@@ -243,7 +269,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
                 id="tpl-body"
                 rows={4}
                 maxLength={1024}
-                placeholder="Hola {{1}}, seguimos disponibles para tu proyecto. ¿Deseas retomar la cotización enviada el {{2}}?"
+                placeholder="Hola {{1}}, te recordamos que tu servicio de {{2}} vence el día {{3}}. ¿Deseas renovarlo ahora?"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
               />
