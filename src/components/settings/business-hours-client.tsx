@@ -82,6 +82,7 @@ export function BusinessHoursClient() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedFeedback, setCopiedFeedback] = useState<string | null>(null);
 
   const [isEnabled, setIsEnabled] = useState(true);
   const [timezone, setTimezone] = useState("America/La_Paz");
@@ -96,6 +97,26 @@ export function BusinessHoursClient() {
     currentLocalTime: string;
   } | null>(null);
 
+  const [initialSnapshot, setInitialSnapshot] = useState<string>("");
+
+  const currentSnapshot = JSON.stringify({
+    isEnabled,
+    timezone,
+    outOfHoursAction,
+    awayMessage,
+    days: days.map((d) => ({
+      dayOfWeek: d.dayOfWeek,
+      isOpen: d.isOpen,
+      openTime1: d.openTime1,
+      closeTime1: d.closeTime1,
+      openTime2: d.openTime2,
+      closeTime2: d.closeTime2,
+    })),
+  });
+
+  const hasChanges =
+    initialSnapshot !== "" && initialSnapshot !== currentSnapshot;
+
   useEffect(() => {
     fetchSchedule();
   }, []);
@@ -106,18 +127,47 @@ export function BusinessHoursClient() {
       const res = await fetch("/api/business-hours");
       if (!res.ok) throw new Error("No se pudo cargar la configuración de horario");
       const data = await res.json();
+      let loadedEnabled = true;
+      let loadedTz = "America/La_Paz";
+      let loadedAction: "none" | "away_message" | "ai_takeover" | "both" =
+        "away_message";
+      let loadedMsg = "";
+      let loadedDays: DayConfig[] = [];
+
       if (data.schedule) {
-        setIsEnabled(data.schedule.isEnabled);
-        setTimezone(data.schedule.timezone || "America/La_Paz");
-        setOutOfHoursAction(data.schedule.outOfHoursAction || "away_message");
-        setAwayMessage(data.schedule.awayMessage || "");
+        loadedEnabled = data.schedule.isEnabled;
+        loadedTz = data.schedule.timezone || "America/La_Paz";
+        loadedAction = data.schedule.outOfHoursAction || "away_message";
+        loadedMsg = data.schedule.awayMessage || "";
+        setIsEnabled(loadedEnabled);
+        setTimezone(loadedTz);
+        setOutOfHoursAction(loadedAction);
+        setAwayMessage(loadedMsg);
       }
       if (data.days) {
-        setDays(data.days);
+        loadedDays = data.days;
+        setDays(loadedDays);
       }
       if (data.currentStatus) {
         setCurrentStatus(data.currentStatus);
       }
+
+      setInitialSnapshot(
+        JSON.stringify({
+          isEnabled: loadedEnabled,
+          timezone: loadedTz,
+          outOfHoursAction: loadedAction,
+          awayMessage: loadedMsg,
+          days: loadedDays.map((d) => ({
+            dayOfWeek: d.dayOfWeek,
+            isOpen: d.isOpen,
+            openTime1: d.openTime1,
+            closeTime1: d.closeTime1,
+            openTime2: d.openTime2,
+            closeTime2: d.closeTime2,
+          })),
+        })
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error al cargar horario");
     } finally {
@@ -180,6 +230,8 @@ export function BusinessHoursClient() {
         return d;
       })
     );
+    setCopiedFeedback("✓ Horario de Lunes copiado a Martes-Viernes. Haz clic en Guardar.");
+    setTimeout(() => setCopiedFeedback(null), 4000);
   }
 
   async function handleSave() {
@@ -187,6 +239,17 @@ export function BusinessHoursClient() {
       setSaving(true);
       setError(null);
       setSuccess(false);
+
+      const sanitizedDays = days.map((d) => ({
+        dayOfWeek: d.dayOfWeek,
+        isOpen: Boolean(d.isOpen),
+        openTime1: (d.openTime1 && d.openTime1.trim() !== "" ? d.openTime1 : "08:30").trim(),
+        closeTime1: (d.closeTime1 && d.closeTime1.trim() !== "" ? d.closeTime1 : "18:30").trim(),
+        openTime2:
+          d.openTime2 && d.openTime2.trim() !== "" ? d.openTime2.trim() : null,
+        closeTime2:
+          d.closeTime2 && d.closeTime2.trim() !== "" ? d.closeTime2.trim() : null,
+      }));
 
       const res = await fetch("/api/business-hours", {
         method: "PUT",
@@ -196,21 +259,39 @@ export function BusinessHoursClient() {
           timezone,
           outOfHoursAction,
           awayMessage,
-          days,
+          days: sanitizedDays,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Error al guardar cambios");
+        const data = await res.json().catch(() => ({}));
+        const msg =
+          data?.error?.message ||
+          data?.message ||
+          "Error al guardar la configuración de horarios";
+        throw new Error(msg);
       }
 
       const updated = await res.json();
       if (updated.currentStatus) {
         setCurrentStatus(updated.currentStatus);
       }
+      if (updated.days) {
+        setDays(updated.days);
+      }
+
+      setInitialSnapshot(
+        JSON.stringify({
+          isEnabled,
+          timezone,
+          outOfHoursAction,
+          awayMessage,
+          days: sanitizedDays,
+        })
+      );
+
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3500);
+      setTimeout(() => setSuccess(false), 4000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -228,12 +309,12 @@ export function BusinessHoursClient() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl pb-32">
       {/* Header & Status Banner */}
       <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-xl font-bold tracking-tight">
                 Horarios de Atención y Fuera de Horario
               </h2>
@@ -262,15 +343,34 @@ export function BusinessHoursClient() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-accent/40 p-2.5 px-4 rounded-lg border">
-            <Label htmlFor="master-toggle" className="text-sm font-semibold cursor-pointer">
-              Control de horario
-            </Label>
-            <ToggleSwitch
-              id="master-toggle"
-              checked={isEnabled}
-              onChange={setIsEnabled}
-            />
+          <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-3 bg-accent/40 p-2 px-3.5 rounded-lg border">
+              <Label htmlFor="master-toggle" className="text-sm font-semibold cursor-pointer">
+                Control de horario
+              </Label>
+              <ToggleSwitch
+                id="master-toggle"
+                checked={isEnabled}
+                onChange={setIsEnabled}
+              />
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 px-4 font-semibold shadow-sm"
+            >
+              {saving ? (
+                <>
+                  <Clock className="h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Guardar Horarios
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -384,16 +484,23 @@ export function BusinessHoursClient() {
               Planificación Semanal (Lunes a Domingo)
             </h3>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={copyMonToWeekdays}
-            className="text-xs gap-1.5 self-start sm:self-auto"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copiar Lunes a Martes-Viernes
-          </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            {copiedFeedback && (
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in">
+                {copiedFeedback}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={copyMonToWeekdays}
+              className="text-xs gap-1.5"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copiar Lunes a Martes-Viernes
+            </Button>
+          </div>
         </div>
 
         <div className="divide-y divide-border">
@@ -499,25 +606,51 @@ export function BusinessHoursClient() {
         </div>
       </div>
 
-      {/* Botón Guardar */}
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 px-6"
-        >
-          {saving ? (
-            <>
-              <Clock className="h-4 w-4 animate-spin" />
-              Guardando configuración...
-            </>
+      {/* Barra fija inferior de sincronización */}
+      <div className="sticky bottom-4 z-20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border bg-card/95 p-4 shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-2 text-sm">
+          {hasChanges ? (
+            <span className="flex items-center gap-2 font-medium text-amber-600 dark:text-amber-400">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-ping" />
+              Hay cambios pendientes de guardar en tus horarios
+            </span>
           ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Guardar Horarios y Reglas
-            </>
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Configuración de horarios al día
+            </span>
           )}
-        </Button>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {error && (
+            <span className="text-xs text-red-600 font-medium flex items-center gap-1 max-w-xs truncate">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {error}
+            </span>
+          )}
+          {success && (
+            <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5" /> ¡Guardado con éxito!
+            </span>
+          )}
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 px-6 font-semibold shadow-md shrink-0"
+          >
+            {saving ? (
+              <>
+                <Clock className="h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Guardar Horarios y Reglas
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
