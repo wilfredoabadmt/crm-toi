@@ -12,6 +12,7 @@ import {
   Kanban,
   LogOut,
   MapPin,
+  Megaphone,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -41,6 +42,7 @@ import {
 const NAV = [
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
+  { href: "/campaigns", label: "Campañas", icon: Megaphone },
   { href: "/contacts", label: "Contactos", icon: Users },
   { href: "/todos", label: "Tareas", icon: CheckSquare },
   { href: "/coverage", label: "Cobertura NAP", icon: MapPin },

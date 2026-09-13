@@ -21,6 +21,8 @@ const prefixes = {
   cajaNap: "nap",
   registroCobertura: "covlog",
   todo: "td",
+  campaign: "camp",
+  campaignRecipient: "rcpt",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
