@@ -1,6 +1,6 @@
 {
-  "feature": "005-tags-and-quick-replies",
-  "title": "Respuestas Rápidas con atajos e Identificación de Contactos con Etiquetas (Tags)",
-  "created_at": "2026-09-13T04:58:00Z",
+  "feature": "006-business-hours",
+  "title": "Módulo visual de Horarios de Atención, estados en tiempo real y respuestas fuera de horario",
+  "created_at": "2026-09-13T05:22:00Z",
   "status": "specifying"
 }
