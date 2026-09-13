@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
+import { Check, ChevronRight, Plus, Sparkles, Tag as TagIcon, UserRound, X } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import { cn, formatPhone } from "@/lib/utils";
 import { getDepartmentByStageName } from "@/lib/departments";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
+interface TagDto {
+  id: string;
+  name: string;
+  color: string;
+}
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -42,6 +48,9 @@ export function ContactPanel({
   // cuando el agente aún no se ha configurado/encendido.
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [contactTags, setContactTags] = useState<TagDto[]>([]);
+  const [allTags, setAllTags] = useState<TagDto[]>([]);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
 
   const contactId = conversation.contact.id;
 
@@ -49,23 +58,47 @@ export function ContactPanel({
   const aiActive =
     agentReady && conversation.aiEnabled && !conversation.handoffAt;
 
-  // Carga inicial (incluye notas): se re-ejecuta al cambiar de contacto.
+  // Carga inicial (incluye notas y etiquetas): se re-ejecuta al cambiar de contacto.
   const refetch = useCallback(async () => {
-    const [detail, stagesRes, agentRes] = await Promise.all([
+    const [detail, stagesRes, agentRes, tagsRes, allTagsRes] = await Promise.all([
       fetch(`/api/contacts/${contactId}`).then((r) => (r.ok ? r.json() : null)),
       fetch("/api/pipeline/stages").then((r) => (r.ok ? r.json() : null)),
       fetch("/api/agent/profile").then((r) => (r.ok ? r.json() : null)),
-    ]).catch(() => [null, null, null]);
+      fetch(`/api/contacts/${contactId}/tags`).then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/tags").then((r) => (r.ok ? r.json() : null)),
+    ]).catch(() => [null, null, null, null, null]);
     if (detail) {
       setNotes(detail.contact?.notes ?? "");
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
     }
     if (stagesRes) setStages(stagesRes.stages);
+    if (tagsRes?.tags) setContactTags(tagsRes.tags);
+    if (allTagsRes?.tags) setAllTags(allTagsRes.tags);
     setAgentEnabled(Boolean(agentRes?.profile?.enabled));
     setAiConfigured(Boolean(agentRes?.aiConfigured));
     setNotesLoaded(true);
   }, [contactId]);
+
+  async function toggleTag(tag: TagDto) {
+    const exists = contactTags.some((t) => t.id === tag.id);
+    const updatedIds = exists
+      ? contactTags.filter((t) => t.id !== tag.id).map((t) => t.id)
+      : [...contactTags.map((t) => t.id), tag.id];
+
+    // Optimistic update
+    setContactTags(
+      exists
+        ? contactTags.filter((t) => t.id !== tag.id)
+        : [...contactTags, tag]
+    );
+
+    await fetch(`/api/contacts/${contactId}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagIds: updatedIds }),
+    }).catch(() => null);
+  }
 
   // Refetch en vivo (etapa/lead + estado del agente) SIN tocar las notas, para
   // no pisar lo que el operador esté escribiendo. Lo dispara el SSE.
@@ -161,6 +194,87 @@ export function ContactPanel({
                 {formatPhone(conversation.contact.phone)}
               </p>
             </div>
+          </div>
+
+          {/* Sección de Etiquetas del Contacto */}
+          <div className="mt-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-2 flex items-center gap-1.5">
+                <TagIcon className="h-3.5 w-3.5 text-primary" /> Etiquetas
+              </span>
+              <button
+                type="button"
+                onClick={() => setTagPickerOpen((p) => !p)}
+                className="text-[11px] font-medium text-primary hover:underline flex items-center gap-0.5"
+              >
+                <Plus className="h-3 w-3" /> Asignar
+              </button>
+            </div>
+
+            {/* Badges de etiquetas asignadas */}
+            <div className="flex flex-wrap gap-1.5 min-h-[22px]">
+              {contactTags.length === 0 ? (
+                <span className="text-[11px] text-muted-foreground italic">
+                  Sin etiquetas
+                </span>
+              ) : (
+                contactTags.map((t) => (
+                  <span
+                    key={t.id}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white shadow-xs"
+                    style={{ backgroundColor: t.color }}
+                  >
+                    {t.name}
+                    <button
+                      type="button"
+                      onClick={() => void toggleTag(t)}
+                      className="hover:opacity-75"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            {/* Selector desplegable de etiquetas */}
+            {tagPickerOpen && (
+              <div className="rounded-lg border bg-card p-2 shadow-sm space-y-1 mt-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase px-1">
+                  Selecciona etiquetas:
+                </p>
+                {allTags.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground p-1">
+                    No hay etiquetas creadas en Ajustes.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {allTags.map((t) => {
+                      const selected = contactTags.some((ct) => ct.id === t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => void toggleTag(t)}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition-colors ${
+                            selected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: t.color }}
+                          />
+                          {t.name}
+                          {selected && <Check className="h-2.5 w-2.5 ml-0.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {conversation.handoffAt && (
