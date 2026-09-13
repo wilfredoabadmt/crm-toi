@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   BellOff,
+  CalendarDays,
   CheckSquare,
   FlaskConical,
   Inbox,
@@ -42,6 +43,7 @@ import {
 const NAV = [
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
+  { href: "/appointments", label: "Agenda", icon: CalendarDays },
   { href: "/campaigns", label: "Campañas", icon: Megaphone },
   { href: "/contacts", label: "Contactos", icon: Users },
   { href: "/todos", label: "Tareas", icon: CheckSquare },

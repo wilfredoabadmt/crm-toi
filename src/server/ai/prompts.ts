@@ -107,6 +107,7 @@ Usa esta información temporal para evaluar con precisión cualquier instrucció
       '- {"action":"reply","text":"..."} — responder al cliente.',
       '- {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).',
       '- {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (reply opcional).',
+      '- {"action":"schedule_appointment","title":"<Título de la visita o cita>","type":"instalacion"|"visita_tecnica"|"reunion"|"revision","scheduledAt":"YYYY-MM-DDTHH:mm:ss","notes":"...","reply":"..."} — agendar cita técnica o reunión cuando el cliente indique o confirme fecha/hora clara.',
       '- {"action":"send_image","imageUrl":"<URL exacta de la lista>","caption":"..."} — enviar una imagen del catálogo con leyenda introductoria opcional.',
       '- {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).',
       "Reglas duras:",

@@ -271,6 +271,29 @@ Gracias por compartir tu ubicación. Por el momento no contamos con cobertura en
       if (action.reply) await deliverReply(conversation, action.reply);
       return;
     }
+    case "schedule_appointment": {
+      try {
+        const { createAppointment } = await import("@/server/appointments/appointments");
+        let parsedDate = new Date(action.scheduledAt);
+        if (isNaN(parsedDate.getTime())) {
+          // Si la fecha no fue parseada en ISO estándar, programar 24h a futuro por defecto
+          parsedDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
+
+        await createAppointment(organizationId, {
+          contactId: conversation.contactId,
+          title: action.title,
+          type: action.type,
+          scheduledAt: parsedDate,
+          notes: action.notes ? `[Agendado por IA]: ${action.notes}` : "Agendado automáticamente por Agente IA en chat",
+          createdByType: "ai_agent",
+        });
+      } catch (err) {
+        console.error("[pipeline] Error al registrar cita por Agente IA:", err);
+      }
+      if (action.reply) await deliverReply(conversation, action.reply);
+      return;
+    }
     case "handoff": {
       if (action.farewell) {
         await deliverReply(conversation, action.farewell);

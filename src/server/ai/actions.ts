@@ -28,6 +28,14 @@ export const AgentAction = z.discriminatedUnion("action", [
     imageUrl: z.string().url(),
     caption: z.string().optional(),
   }),
+  z.object({
+    action: z.literal("schedule_appointment"),
+    title: z.string().min(1),
+    type: z.enum(["instalacion", "visita_tecnica", "reunion", "revision"]),
+    scheduledAt: z.string().min(1), // Formato ISO o fecha reconocible
+    notes: z.string().optional(),
+    reply: z.string().min(1),
+  }),
 ]);
 
 export type AgentActionType = z.infer<typeof AgentAction>;
