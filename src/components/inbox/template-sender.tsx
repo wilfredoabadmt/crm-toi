@@ -19,7 +19,7 @@ export function TemplateSender({
 }) {
   const [templates, setTemplates] = useState<TemplateDto[] | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
-  const [variable, setVariable] = useState("");
+  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,10 +59,18 @@ export function TemplateSender({
   }
 
   const selected = templates.find((t) => t.id === selectedId) ?? null;
-  const needsVariable = selected ? /\{\{\s*1\s*\}\}/.test(selected.body) : false;
+  const variableMatches = selected ? [...selected.body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)] : [];
+  const variableNumbers = [...new Set(variableMatches.map((m) => m[1]!))].sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10)
+  );
+
+  const isFormValid =
+    selected &&
+    (!variableNumbers.length ||
+      variableNumbers.every((num) => (variableValues[num] ?? "").trim().length > 0));
 
   async function send() {
-    if (!selected || sending) return;
+    if (!selected || sending || !isFormValid) return;
     setSending(true);
     setError(null);
     const res = await fetch(
@@ -72,7 +80,8 @@ export function TemplateSender({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           templateId: selected.id,
-          variable: needsVariable ? variable : undefined,
+          variables: variableValues,
+          variable: variableValues["1"] || undefined,
         }),
       }
     );
@@ -85,7 +94,7 @@ export function TemplateSender({
       return;
     }
     setSelectedId("");
-    setVariable("");
+    setVariableValues({});
     onSent();
   }
 
@@ -96,7 +105,10 @@ export function TemplateSender({
         <select
           id="template-select"
           value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
+          onChange={(e) => {
+            setSelectedId(e.target.value);
+            setVariableValues({});
+          }}
           className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="">Elige una plantilla…</option>
@@ -108,25 +120,41 @@ export function TemplateSender({
         </select>
       </div>
       {selected && (
-        <p className="rounded-md bg-secondary/60 p-2.5 text-xs text-muted-foreground">
+        <p className="rounded-md bg-secondary/60 p-2.5 text-xs text-muted-foreground whitespace-pre-wrap">
           {selected.body}
         </p>
       )}
-      {needsVariable && (
-        <div className="space-y-1.5">
-          <Label htmlFor="template-variable">Valor de la variable {"{{1}}"}</Label>
-          <Input
-            id="template-variable"
-            value={variable}
-            onChange={(e) => setVariable(e.target.value)}
-            placeholder="p. ej. el nombre del cliente"
-          />
+      {variableNumbers.length > 0 && (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-2.5">
+          <Label className="text-xs font-semibold">Variables requeridas</Label>
+          {variableNumbers.map((num) => (
+            <div key={num} className="flex items-center gap-2 text-xs">
+              <span className="font-mono font-bold text-primary w-12 text-center bg-primary/10 py-1 rounded">
+                {"{{" + num + "}}"}
+              </span>
+              <Input
+                value={variableValues[num] || ""}
+                onChange={(e) =>
+                  setVariableValues((prev) => ({
+                    ...prev,
+                    [num]: e.target.value,
+                  }))
+                }
+                placeholder={
+                  num === "1"
+                    ? "Nombre del cliente o dato 1"
+                    : `Valor para variable ${num}`
+                }
+                className="h-8 text-xs"
+              />
+            </div>
+          ))}
         </div>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
       <Button
         onClick={() => void send()}
-        disabled={!selected || sending || (needsVariable && !variable.trim())}
+        disabled={!selected || sending || !isFormValid}
       >
         {sending ? "Enviando…" : "Enviar plantilla"}
       </Button>

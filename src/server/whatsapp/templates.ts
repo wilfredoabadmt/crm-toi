@@ -53,17 +53,43 @@ export function countVariables(body: string): number {
 
 export function validateBodyVariables(body: string): string | null {
   const matches = [...body.matchAll(VARIABLE_REGEX)];
-  if (matches.length > 1) {
-    return "v1 admite una sola variable {{1}} en el cuerpo";
-  }
-  if (matches.length === 1 && matches[0]![1] !== "1") {
-    return "La variable debe ser {{1}}";
+  if (matches.length === 0) return null;
+
+  const numbers = matches.map((m) => parseInt(m[1]!, 10));
+  // Deben ser secuenciales empezando desde 1: 1, 2, 3...
+  for (let i = 0; i < numbers.length; i++) {
+    const expected = i + 1;
+    if (numbers[i] !== expected) {
+      return `Las variables deben ser secuenciales y comenzar en {{1}} (encontrado {{${numbers[i]}}}, esperado {{${expected}}})`;
+    }
   }
   return null;
 }
 
-export function renderBody(body: string, variable?: string): string {
-  return body.replace(VARIABLE_REGEX, variable ?? "");
+/** Renderiza el cuerpo reemplazando variables {{1}}, {{2}}, etc. con soporte retrocompatible. */
+export function renderBody(
+  body: string,
+  variablesOrSingle?: string | Record<string, string> | string[]
+): string {
+  if (!variablesOrSingle) return body.replace(VARIABLE_REGEX, "");
+
+  if (typeof variablesOrSingle === "string") {
+    // Si viene solo un string (legacy v1), reemplaza {{1}} o la primera variable
+    return body.replace(VARIABLE_REGEX, (match, num) => {
+      return num === "1" ? variablesOrSingle : match;
+    });
+  }
+
+  if (Array.isArray(variablesOrSingle)) {
+    return body.replace(VARIABLE_REGEX, (_match, num) => {
+      const idx = parseInt(num, 10) - 1;
+      return variablesOrSingle[idx] ?? "";
+    });
+  }
+
+  return body.replace(VARIABLE_REGEX, (match, num) => {
+    return variablesOrSingle[num] ?? variablesOrSingle[`var_${num}`] ?? match;
+  });
 }
 
 type TemplateRow = typeof schema.template.$inferSelect;
@@ -102,7 +128,11 @@ export async function createTemplate(
     .replace(/[^a-z0-9_]/g, "");
   if (!name) throw new TemplateError("invalid", "Nombre de plantilla inválido");
 
-  const hasVariable = countVariables(input.body) === 1;
+  const varCount = countVariables(input.body);
+  const hasVariables = varCount > 0;
+  // Meta requiere un array bidimensional con ejemplos para cada variable: [["ejemplo1", "ejemplo2", ...]]
+  const sampleValues = Array.from({ length: varCount }, (_, i) => `ejemplo${i + 1}`);
+
   let waTemplateId: string | null = null;
   try {
     const res = await graphRequest<{ id?: string; status?: string }>(
@@ -118,8 +148,8 @@ export async function createTemplate(
             {
               type: "BODY",
               text: input.body,
-              ...(hasVariable
-                ? { example: { body_text: [["ejemplo"]] } }
+              ...(hasVariables
+                ? { example: { body_text: [sampleValues] } }
                 : {}),
             },
           ],
@@ -281,6 +311,7 @@ export async function sendTemplate(input: {
   conversationId: string;
   templateId: string;
   variable?: string;
+  variables?: Record<string, string> | string[];
 }): Promise<{ messageId: string }> {
   const db = getDb();
 
@@ -300,9 +331,31 @@ export async function sendTemplate(input: {
   if (template.status !== "approved") {
     throw new TemplateError("invalid", "Solo se pueden enviar plantillas aprobadas");
   }
-  const needsVariable = countVariables(template.body) === 1;
-  if (needsVariable && !input.variable?.trim()) {
-    throw new TemplateError("invalid", "La plantilla requiere el valor de {{1}}");
+  const varCount = countVariables(template.body);
+
+  // Normalizar variables recibidas:
+  const normalizedValues: string[] = [];
+  if (Array.isArray(input.variables)) {
+    normalizedValues.push(...input.variables);
+  } else if (input.variables && typeof input.variables === "object") {
+    for (let i = 1; i <= varCount; i++) {
+      normalizedValues.push(
+        input.variables[String(i)] ?? input.variables[`var_${i}`] ?? ""
+      );
+    }
+  } else if (input.variable) {
+    normalizedValues.push(input.variable);
+  }
+
+  if (varCount > 0) {
+    if (normalizedValues.length === 0 || !normalizedValues[0]?.trim()) {
+      throw new TemplateError(
+        "invalid",
+        varCount === 1
+          ? "La plantilla requiere el valor de {{1}}"
+          : `La plantilla requiere los valores de las variables (1 a ${varCount})`
+      );
+    }
   }
 
   const rows = await db
@@ -336,6 +389,11 @@ export async function sendTemplate(input: {
     throw new TemplateError("reconnect_required", "Reconecta el número");
   }
 
+  const bodyParameters = normalizedValues.slice(0, varCount).map((val) => ({
+    type: "text" as const,
+    text: val.trim(),
+  }));
+
   const waMessageId = await callGraphSend(creds, {
     messaging_product: "whatsapp",
     to: normalizeRecipient(row.contact.phone),
@@ -343,12 +401,12 @@ export async function sendTemplate(input: {
     template: {
       name: template.name,
       language: { code: template.language },
-      ...(needsVariable
+      ...(bodyParameters.length > 0
         ? {
             components: [
               {
                 type: "body",
-                parameters: [{ type: "text", text: input.variable!.trim() }],
+                parameters: bodyParameters,
               },
             ],
           }
@@ -365,7 +423,7 @@ export async function sendTemplate(input: {
       waMessageId,
       direction: "out",
       type: "template",
-      text: renderBody(template.body, input.variable?.trim()),
+      text: renderBody(template.body, normalizedValues),
       status: "pending",
     })
     .returning();

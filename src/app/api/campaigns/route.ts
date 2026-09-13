@@ -34,9 +34,10 @@ export const POST = withAuth(async (session, req: Request) => {
   // Si solo se solicita calcular audiencia
   if (body.data.action === "calculate_audience") {
     try {
+      const targetType = body.data.targetType ?? "all_contacts";
       const audience = await calculateAudience(
         session.organizationId,
-        body.data.targetType,
+        targetType,
         body.data.targetStageIds
       );
       return Response.json({
@@ -51,6 +52,7 @@ export const POST = withAuth(async (session, req: Request) => {
 
   // Crear la campaña
   try {
+    const targetType = body.data.targetType ?? "all_contacts";
     const campaign = await createCampaign(
       session.organizationId,
       session.userId,
@@ -61,12 +63,16 @@ export const POST = withAuth(async (session, req: Request) => {
         mediaUrl: body.data.mediaUrl,
         mediaType: body.data.mediaType,
         variableValues: body.data.variableValues,
-        targetType: body.data.targetType,
+        targetType,
         targetStageIds: body.data.targetStageIds,
         scheduledAt: body.data.scheduledAt,
         sendImmediately: body.data.sendImmediately,
       }
     );
+
+    if (!campaign) {
+      return apiError(500, "internal", "No se pudo registrar la campaña");
+    }
 
     // Si el propietario pidió enviar inmediatamente, disparar ejecución asíncrona
     if (session.role === "owner" && body.data.sendImmediately) {
