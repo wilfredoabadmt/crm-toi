@@ -26,6 +26,7 @@ import type { Branding } from "@/lib/branding";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useEvents } from "@/components/use-events";
 import {
   type DepartmentConfig,
@@ -274,6 +275,11 @@ export function AppNav({
             <span>Activar avisos de PC</span>
           </button>
         )}
+      </div>
+
+      {/* Selector de Tema Claro / Oscuro */}
+      <div className="px-1 py-1">
+        <ThemeToggle />
       </div>
 
       {role === "owner" && (
