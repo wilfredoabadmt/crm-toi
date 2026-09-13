@@ -1,6 +1,6 @@
 {
-  "feature": "006-business-hours",
-  "title": "Módulo visual de Horarios de Atención, estados en tiempo real y respuestas fuera de horario",
-  "created_at": "2026-09-13T05:22:00Z",
-  "status": "implemented"
+  "feature": "007-analytics-reports",
+  "title": "Panel de Métricas y Rendimiento de Atención (Analytics / Reports)",
+  "created_at": "2026-09-13T05:41:00Z",
+  "status": "specifying"
 }
