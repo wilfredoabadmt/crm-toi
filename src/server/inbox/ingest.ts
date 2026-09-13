@@ -7,6 +7,7 @@ import type { WebhookValue } from "@/server/inbox/webhook";
 import { applyStatusUpdate } from "@/server/inbox/status";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { handleOutOfHoursInbound } from "@/server/business-hours/service";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -225,7 +226,15 @@ export async function ingestInboundMessage(input: {
     data: { conversation: { id: conversation.id } },
   });
 
-  await maybeRunAgentTurn(conversation.id);
+  const outOfHours = await handleOutOfHoursInbound(
+    organizationId,
+    conversation,
+    contact
+  );
+
+  if (!outOfHours.preventAi) {
+    await maybeRunAgentTurn(conversation.id);
+  }
 }
 
 function toDate(timestamp: string): Date {
