@@ -6,8 +6,8 @@ export default async function SettingsLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSessionOrNull();
-  if (!session || session.role !== "owner") {
-    redirect("/inbox");
+  if (!session) {
+    redirect("/login");
   }
 
   return (
@@ -16,7 +16,7 @@ export default async function SettingsLayout({
         <h2 className="font-semibold">Configuración</h2>
       </header>
       <div className="flex min-h-0 flex-1">
-        <SettingsNav />
+        <SettingsNav role={session.role} />
         <div className="min-w-0 flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>

@@ -282,34 +282,33 @@ export function AppNav({
         <ThemeToggle />
       </div>
 
-      {role === "owner" && (
-        <Link
-          href="/settings"
+      <Link
+        href="/settings"
+        className={cn(
+          "flex items-center gap-[11px] rounded-sm px-2.5 py-2 text-sm font-medium transition-colors",
+          pathname.startsWith("/settings")
+            ? "bg-brand-tint font-semibold text-brand-text"
+            : "text-text-2 hover:bg-accent"
+        )}
+      >
+        <Settings
           className={cn(
-            "flex items-center gap-[11px] rounded-sm px-2.5 py-2 text-sm font-medium transition-colors",
-            pathname.startsWith("/settings")
-              ? "bg-brand-tint font-semibold text-brand-text"
-              : "text-text-2 hover:bg-accent"
+            "h-[18px] w-[18px]",
+            pathname.startsWith("/settings") ? "text-brand" : "text-text-3"
           )}
-        >
-          <Settings
-            className={cn(
-              "h-[18px] w-[18px]",
-              pathname.startsWith("/settings") ? "text-brand" : "text-text-3"
-            )}
-            strokeWidth={1.7}
-          />
-          Ajustes
-        </Link>
-      )}
+          strokeWidth={1.7}
+        />
+        {role === "owner" ? "Ajustes" : "Mi Perfil y Ajustes"}
+      </Link>
 
       {/* Tarjeta de Cuenta Personal en la barra lateral */}
-      <div
-        onClick={() => setProfileOpen(true)}
-        className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent cursor-pointer group transition-colors"
-        title="Clic para ver mi cuenta y departamentos asignados"
-        role="button"
-        tabIndex={0}
+      <Link
+        href="/settings/profile"
+        className={cn(
+          "mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent cursor-pointer group transition-colors",
+          pathname === "/settings/profile" ? "bg-accent" : ""
+        )}
+        title="Clic para gestionar Mi Perfil y Contraseña"
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-text shadow-2xs">
           {initials(userName)}
@@ -340,10 +339,12 @@ export function AppNav({
           )}
         </span>
         <button
+          type="button"
           aria-label="Cerrar sesión"
           title="Cerrar sesión"
           className="rounded p-1 text-text-3 hover:text-foreground hover:bg-muted"
           onClick={async (e) => {
+            e.preventDefault();
             e.stopPropagation();
             await signOut();
             router.push("/login");
@@ -352,7 +353,7 @@ export function AppNav({
         >
           <LogOut className="h-4 w-4" strokeWidth={1.7} />
         </button>
-      </div>
+      </Link>
 
       {/* Modal: Mi Cuenta Personal y Departamentos Asignados */}
       {profileOpen && (
