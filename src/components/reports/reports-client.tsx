@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Inbox,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,8 +63,8 @@ export function ReportsClient() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-brand-primary" />
-            Panel de Métricas y Rendimiento
+            <LayoutDashboard className="h-6 w-6 text-brand-primary" />
+            Dashboard General
           </h1>
           <p className="text-sm text-muted-foreground">
             Monitoreo en tiempo real de volumen de atención, automatización de IA, horas pico y conversión del pipeline.

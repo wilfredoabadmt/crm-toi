@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  BarChart3,
   Bell,
   BellOff,
   CalendarDays,
@@ -12,6 +11,7 @@ import {
   FlaskConical,
   Inbox,
   Kanban,
+  LayoutDashboard,
   LogOut,
   MapPin,
   Megaphone,
@@ -42,10 +42,10 @@ import {
 } from "@/lib/sound-notifications";
 
 const NAV = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/appointments", label: "Agenda", icon: CalendarDays },
-  { href: "/reports", label: "Métricas", icon: BarChart3 },
   { href: "/campaigns", label: "Campañas", icon: Megaphone },
   { href: "/contacts", label: "Contactos", icon: Users },
   { href: "/todos", label: "Tareas", icon: CheckSquare },
