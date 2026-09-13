@@ -58,8 +58,9 @@ export function ReportsClient() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6 max-w-7xl mx-auto">
-      {/* Header con Filtros de Fecha */}
+    <div className="h-full w-full overflow-y-auto">
+      <div className="space-y-6 p-6 max-w-7xl mx-auto pb-28">
+        {/* Header con Filtros de Fecha */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -448,6 +449,7 @@ export function ReportsClient() {
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

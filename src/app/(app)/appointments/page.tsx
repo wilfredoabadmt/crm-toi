@@ -7,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function AppointmentsPage() {
-  return <AppointmentsClient />;
+  return (
+    <div className="h-full w-full overflow-y-auto p-6 pb-24">
+      <AppointmentsClient />
+    </div>
+  );
 }
