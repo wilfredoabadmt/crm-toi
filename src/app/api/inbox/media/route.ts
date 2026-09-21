@@ -52,13 +52,16 @@ export const GET = withAuth(async (session, req: Request) => {
       );
     }
 
+    const arrayBuffer = await binaryRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     const contentType =
       metaMedia.mime_type ||
       binaryRes.headers.get("content-type") ||
       "application/octet-stream";
 
-    // 3. Devolver el stream al navegador con cabeceras de caché
-    return new Response(binaryRes.body, {
+    // 3. Devolver el archivo al navegador con cabeceras de caché
+    return new Response(buffer, {
       status: 200,
       headers: {
         "Content-Type": contentType,

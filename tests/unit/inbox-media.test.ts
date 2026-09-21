@@ -52,6 +52,25 @@ describe("Gestión de Multimedia en Bandeja (inbox-media)", () => {
     expect(parsed.url).toBe("/api/inbox/media?id=889900");
   });
 
+  it("parsea imágenes históricas o sin texto (m.text === null)", () => {
+    const parsed = parseMediaContent("image", null);
+
+    expect(parsed.isMedia).toBe(true);
+    expect(parsed.type).toBe("image");
+    expect(parsed.url).toBeNull();
+    expect(parsed.caption).toBeNull();
+  });
+
+  it("parsea imágenes salientes [IMAGEN: url] sin caption", () => {
+    const raw = "[IMAGEN: https://r2.toi.bo/qr.png]";
+    const parsed = parseMediaContent("image", raw);
+
+    expect(parsed.isMedia).toBe(true);
+    expect(parsed.type).toBe("image");
+    expect(parsed.url).toBe("https://r2.toi.bo/qr.png");
+    expect(parsed.caption).toBeNull();
+  });
+
   it("genera previewText descriptivo para la lista de conversaciones", () => {
     expect(previewText("[MEDIA:123] Requisitos")).toBe("📷 Foto: Requisitos");
     expect(previewText("[MEDIA:123]")).toBe("📷 Foto");

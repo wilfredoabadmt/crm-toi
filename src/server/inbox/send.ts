@@ -199,20 +199,24 @@ export async function sendImage(input: {
     image: imagePayload,
   });
 
-  const inserted = await db
-    .insert(schema.message)
-    .values({
-      id: newId("message"),
-      organizationId: input.organizationId,
-      conversationId: input.conversationId,
-      waMessageId,
-      direction: "out",
-      type: "image",
-      text: input.caption?.trim() ?? input.imageUrl,
-      status: "pending",
-      aiGenerated: input.aiGenerated ?? false,
-    })
-    .returning();
+    const textToStore = input.caption?.trim()
+      ? `[IMAGEN: ${publicImageUrl}]\n${input.caption.trim()}`
+      : `[IMAGEN: ${publicImageUrl}]`;
+
+    const inserted = await db
+      .insert(schema.message)
+      .values({
+        id: newId("message"),
+        organizationId: input.organizationId,
+        conversationId: input.conversationId,
+        waMessageId,
+        direction: "out",
+        type: "image",
+        text: textToStore,
+        status: "pending",
+        aiGenerated: input.aiGenerated ?? false,
+      })
+      .returning();
   const message = inserted[0]!;
 
   await db
