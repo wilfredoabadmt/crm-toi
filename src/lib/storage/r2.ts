@@ -41,6 +41,17 @@ function getR2Client(): { client: S3Client; bucket: string; publicUrl: string } 
   return { client, bucket, publicUrl };
 }
 
+export function isR2Configured(): boolean {
+  try {
+    const env = getEnv();
+    const accessKeyId = env.CLOUDFLARE_R2_ACCESS_KEY_ID ?? process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
+    const secretAccessKey = env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ?? process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
+    return Boolean(accessKeyId && secretAccessKey);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Sube un archivo Buffer a Cloudflare R2 y retorna la URL pública completa.
  */
@@ -48,11 +59,19 @@ export async function uploadToR2(input: {
   file: Buffer;
   filename: string;
   mimeType: string;
+  folder?: string;
+  exactKey?: string;
 }): Promise<string> {
   const { client, bucket, publicUrl } = getR2Client();
 
-  const cleanFilename = input.filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
-  const key = `agent-media/${Date.now()}_${cleanFilename}`;
+  let key: string;
+  if (input.exactKey) {
+    key = input.exactKey.replace(/^\/+/, "");
+  } else {
+    const cleanFilename = input.filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    const folder = input.folder ? input.folder.replace(/\/+$/, "") : "agent-media";
+    key = `${folder}/${Date.now()}_${cleanFilename}`;
+  }
 
   await client.send(
     new PutObjectCommand({

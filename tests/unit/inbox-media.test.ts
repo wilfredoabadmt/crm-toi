@@ -71,9 +71,21 @@ describe("Gestión de Multimedia en Bandeja (inbox-media)", () => {
     expect(parsed.caption).toBeNull();
   });
 
+  it("parsea imágenes entrantes respaldadas en R2 [IMAGEN: url] con caption", () => {
+    const raw = "[IMAGEN: https://pub-123.r2.dev/inbox-media/photo_999.jpg] Foto de mi carnet";
+    const parsed = parseMediaContent("image", raw);
+
+    expect(parsed.isMedia).toBe(true);
+    expect(parsed.type).toBe("image");
+    expect(parsed.url).toBe("https://pub-123.r2.dev/inbox-media/photo_999.jpg");
+    expect(parsed.caption).toBe("Foto de mi carnet");
+  });
+
   it("genera previewText descriptivo para la lista de conversaciones", () => {
     expect(previewText("[MEDIA:123] Requisitos")).toBe("📷 Foto: Requisitos");
     expect(previewText("[MEDIA:123]")).toBe("📷 Foto");
+    expect(previewText("[IMAGEN: https://r2.toi.bo/qr.png] Código QR")).toBe("📷 Foto: Código QR");
+    expect(previewText("[IMAGEN: https://r2.toi.bo/qr.png]")).toBe("📷 Foto");
     expect(previewText("[DOC:123:cedula.pdf]")).toBe("📄 cedula.pdf");
     expect(previewText("[AUDIO:123]")).toBe("🎵 Nota de voz");
     expect(previewText("Hola, buenas tardes")).toBe("Hola, buenas tardes");

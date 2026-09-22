@@ -8,6 +8,7 @@ import { applyStatusUpdate } from "@/server/inbox/status";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
 import { handleOutOfHoursInbound } from "@/server/business-hours/service";
+import { persistMetaMediaToR2 } from "@/server/inbox/media-storage";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -130,9 +131,20 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       messageText = `📍 Ubicación compartida: Latitud ${latitude}, Longitud ${longitude}${address ? ` (${address})` : ""}${name ? ` [${name}]` : ""}`;
     } else if (msg.type === "image" && msg.image) {
       const caption = msg.image.caption?.trim();
-      messageText = caption
-        ? `[MEDIA:${msg.image.id}] ${caption}`
-        : `[MEDIA:${msg.image.id}]`;
+      let r2Url: string | null = null;
+      if (credentials?.token) {
+        r2Url = await persistMetaMediaToR2({
+          mediaId: msg.image.id,
+          token: credentials.token,
+        });
+      }
+      if (r2Url) {
+        messageText = caption ? `[IMAGEN: ${r2Url}] ${caption}` : `[IMAGEN: ${r2Url}]`;
+      } else {
+        messageText = caption
+          ? `[MEDIA:${msg.image.id}] ${caption}`
+          : `[MEDIA:${msg.image.id}]`;
+      }
     } else if (msg.type === "document" && msg.document) {
       const name = msg.document.filename ?? "documento";
       const caption = msg.document.caption?.trim();

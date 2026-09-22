@@ -144,6 +144,9 @@ export function previewText(preview: string | null): string {
   }
   if (preview.startsWith("[AUDIO:")) return "🎵 Nota de voz";
   if (preview.startsWith("[VIDEO:")) return "🎥 Video";
-  if (preview.startsWith("[IMAGEN:")) return "📷 Imagen enviada";
+  if (preview.startsWith("[IMAGEN:")) {
+    const caption = preview.replace(/^\[IMAGEN:[^\]]+\]\s*/, "").trim();
+    return caption ? `📷 Foto: ${caption}` : "📷 Foto";
+  }
   return MEDIA_LABELS[preview] ? `📎 ${MEDIA_LABELS[preview]}` : preview;
 }

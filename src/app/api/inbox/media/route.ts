@@ -1,12 +1,13 @@
 import { withAuth, apiError } from "@/lib/api";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { graphRequest } from "@/lib/meta/client";
+import { isR2Configured, getR2Object, uploadToR2 } from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Proxy autenticado para servir archivos multimedia (imágenes, audios, documentos)
- * recibidos a través de la WhatsApp Cloud API de Meta.
+ * recibidos a través de la WhatsApp Cloud API de Meta con respaldo permanente en Cloudflare R2.
  *
  * Endpoint: GET /api/inbox/media?id=<media_id>
  */
@@ -16,6 +17,26 @@ export const GET = withAuth(async (session, req: Request) => {
 
   if (!mediaId || !mediaId.trim()) {
     return apiError(400, "missing_id", "Falta el identificador del archivo multimedia.");
+  }
+
+  const trimmedId = mediaId.trim();
+
+  // 0. Si ya está respaldado en Cloudflare R2, servirlo directamente desde ahí
+  if (isR2Configured()) {
+    try {
+      const cached = await getR2Object(`inbox-media/${trimmedId}`);
+      if (cached?.body) {
+        return new Response(Buffer.from(cached.body), {
+          status: 200,
+          headers: {
+            "Content-Type": cached.contentType || "application/octet-stream",
+            "Cache-Control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
+    } catch {
+      // No está en caché R2 todavía, continuar con la descarga desde Meta
+    }
   }
 
   const creds = await getCredentialsByOrg(session.organizationId);
@@ -30,7 +51,7 @@ export const GET = withAuth(async (session, req: Request) => {
       mime_type?: string;
       sha256?: string;
       file_size?: number;
-    }>(mediaId.trim(), { token: creds.token });
+    }>(trimmedId, { token: creds.token });
 
     if (!metaMedia?.url) {
       return apiError(404, "media_not_found", "No se encontró el recurso multimedia en Meta.");
@@ -60,7 +81,19 @@ export const GET = withAuth(async (session, req: Request) => {
       binaryRes.headers.get("content-type") ||
       "application/octet-stream";
 
-    // 3. Devolver el archivo al navegador con cabeceras de caché
+    // 3. Respaldar asíncronamente en Cloudflare R2 para que nunca expire
+    if (isR2Configured()) {
+      uploadToR2({
+        file: buffer,
+        filename: trimmedId,
+        mimeType: contentType,
+        exactKey: `inbox-media/${trimmedId}`,
+      }).catch((err) => {
+        console.warn(`[api/inbox/media] Error al respaldar en R2 mediaId=${trimmedId}:`, err);
+      });
+    }
+
+    // 4. Devolver el archivo al navegador con cabeceras de caché
     return new Response(buffer, {
       status: 200,
       headers: {

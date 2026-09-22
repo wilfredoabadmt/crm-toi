@@ -215,6 +215,7 @@ Gracias por compartir tu ubicación. Por el momento no contamos con cobertura en
         role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
         content: m.text!
           .replace(/\[MEDIA:[^\]]+\]\s*/g, "[Cliente adjuntó una imagen/foto] ")
+          .replace(/\[IMAGEN:[^\]]+\]\s*/g, m.direction === "in" ? "[Cliente adjuntó una imagen/foto] " : "[Imagen enviada] ")
           .replace(/\[DOC:[^:]+:([^\]]+)\]\s*/g, "[Cliente adjuntó un documento: $1] ")
           .replace(/\[AUDIO:[^\]]+\]\s*/g, "[Cliente adjuntó un audio] ")
           .replace(/\[VIDEO:[^\]]+\]\s*/g, "[Cliente adjuntó un video] ")
