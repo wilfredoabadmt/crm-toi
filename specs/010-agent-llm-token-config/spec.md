@@ -12,30 +12,42 @@ Esto otorga:
 
 ## 2. Decisiones de Clarificación (Fase Clarify)
 
-1. **Proveedor y Endpoints:**
-   - Priorizar **OpenRouter por defecto** (`https://openrouter.ai/api`), lo que permite con una única API Key acceder a todo el catálogo de modelos líderes (OpenAI, DeepSeek, Anthropic Claude, Meta Llama, etc.).
-   - Mantener la opción de **Endpoint Personalizado compatible con OpenAI** para quienes usan endpoints directos o proxies locales/privados.
-2. **Sincronización del archivo `.env`:**
+1. **Soporte Multi-Proveedor Oficial y Universal:**
+   - En lugar de limitarse a OpenRouter, el sistema soporta nativamente a los principales proveedores oficiales con su propia facturación:
+     - **OpenAI oficial** (`https://api.openai.com` / `https://api.openai.com/v1`) con modelos como `gpt-4o`, `gpt-4o-mini`, `o1-mini`.
+     - **Anthropic Claude oficial** (`https://api.anthropic.com` / `https://api.anthropic.com/v1`) con soporte para cabecera `x-api-key` y endpoint `/messages` (`claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`).
+     - **DeepSeek oficial** (`https://api.deepseek.com` / `https://api.deepseek.com/v1`) con modelos `deepseek-chat` y `deepseek-reasoner`.
+     - **Groq oficial** (`https://api.groq.com/openai/v1`) para inferencia ultra-rápida con `llama-3.3-70b-versatile`.
+     - **xAI Grok oficial** (`https://api.x.ai/v1`) con modelos `grok-2-latest`.
+     - **OpenRouter** (`https://openrouter.ai/api`) para catálogo unificado multi-modelo.
+     - **Personalizado / Custom (Z.AI, Ollama, vLLM, Azure, etc.)**: Campo libre para ingresar cualquier Base URL compatible con OpenAI y cualquier nombre de modelo.
+2. **Adaptador Inteligente en Backend:**
+   - Detecta si la llamada va hacia Anthropic Claude (vía URL `api.anthropic.com` o prefijo de token `sk-ant-`) para formatear el request (`/v1/messages` con `x-api-key` y `anthropic-version: 2023-06-01`), o hacia cualquier proveedor estándar OpenAI (`/v1/chat/completions` con `Bearer token`).
+   - Normaliza automáticamente la URL base (agrega `/v1` o quita diagonales sobrantes según el proveedor).
+3. **Sincronización del archivo `.env`:**
    - Se actualizan las claves `OPENROUTER_API_TOKEN`, `OPENROUTER_MODEL` y `OPENROUTER_BASE_URL` en el archivo `.env` físico en disco si existe, y simultáneamente se actualiza la memoria del proceso (`process.env`) y la base de datos cifrada para efecto inmediato en caliente.
-3. **Ubicación en la Interfaz:**
-   - Una tarjeta destacada en la parte superior del panel del Agente (`/agent`), visible para administradores y propietarios, con previsualización del estado, botón "Probar conexión" y selector de modelos populares.
+4. **Ubicación en la Interfaz:**
+   - Tarjeta en `/agent` con selector visual de proveedor por pestañas o botones con logotipos/marcas conocidas, catálogo dinámico de modelos por proveedor y opción libre manual.
 
 ---
 
 ## 3. Historias de Usuario
 
-### Historia 1: Configuración de Credenciales de LLM en el Panel del Agente
+### Historia 1: Selección y Configuración de Proveedor Oficial o Personalizado
 **Como** propietario del CRM,  
-**quiero** acceder a una tarjeta de configuración de "Proveedor y Modelo de IA" en el panel `/agent` con campos para Base URL, Modelo y Token de API,  
-**para** ingresar mis propias credenciales y elegir el modelo que mejor se adapte a mis requerimientos y presupuesto.
+**quiero** elegir visualmente mi proveedor oficial (OpenAI, Anthropic Claude, DeepSeek, Groq, OpenRouter o Personalizado) e ingresar mi API key directa,  
+**para** utilizar mi suscripción o créditos oficiales en lugar de depender de una pasarela específica.
 
 #### Criterios de Aceptación:
-- En la interfaz `/agent`, se muestra una sección destacada: "Proveedor y Modelo de IA".
-- Campos configurables:
-  - **Proveedor / Endpoint Base**: OpenRouter por defecto (`https://openrouter.ai/api`) o Personalizado.
-  - **Modelo**: Selector con sugerencias rápidas (`openai/gpt-4o-mini`, `deepseek/deepseek-chat`, `anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`) y entrada manual libre.
-  - **Token de API**: Campo protegido (tipo contraseña). Una vez guardado, se muestran únicamente los últimos 4 caracteres.
-- Banner de advertencia guiando al usuario si no hay token configurado.
+- El formulario ofrece pestañas o selector rápido de proveedores:
+  - **OpenAI (ChatGPT)**: Rellena automáticamente la URL base oficial y lista modelos de OpenAI.
+  - **Anthropic (Claude)**: Rellena automáticamente la URL base oficial de Anthropic y lista modelos de Claude.
+  - **DeepSeek**: Rellena automáticamente la URL oficial de DeepSeek (`https://api.deepseek.com`).
+  - **Groq**: Rellena automáticamente la URL oficial de Groq.
+  - **OpenRouter**: Rellena la URL base y modelos multi-proveedor.
+  - **Personalizado (Z.AI, Ollama, otros)**: Permite ingresar cualquier Base URL y cualquier ID de modelo.
+- Campo de API Key protegido con máscara de seguridad.
+- Al seleccionar un proveedor, se actualizan las sugerencias de modelos correspondientes.
 
 ---
 

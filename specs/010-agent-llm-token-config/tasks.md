@@ -16,7 +16,8 @@
 - [x] 3.2 Añadir botón interactivo **"Probar conexión"** con badge de estado (éxito con latencia / error descriptivo).
 - [x] 3.3 Integrar `LlmConfigCard` en `src/components/agent/agent-client.tsx` en la parte superior del panel del Agente.
 
-## Fase 4: Verificación, Build y Despliegue
-- [x] 4.1 Validar tipado y compilación local con `npm run build`.
-- [x] 4.2 Commit del hito y push a GitHub (`master`).
-- [x] 4.3 Despliegue en Coolify (`panel.sys.toi.bo`) y comprobación de salud en producción.
+## Fase 4: Soporte Universal Multi-Proveedor (OpenAI, Anthropic Claude, DeepSeek, Groq, OpenRouter, Custom)
+- [x] 4.1 Actualizar `src/lib/ai/index.ts` con adaptador dual OpenAI-compatible / Anthropic-messages y normalización de URLs base.
+- [x] 4.2 Actualizar `src/app/api/agent/llm-test/route.ts` para soportar pruebas de conexión multi-proveedor (OpenAI, Anthropic, DeepSeek, Groq, etc.).
+- [x] 4.3 Rediseñar `src/components/agent/llm-config-card.tsx` con selector visual de proveedores reconocidos (OpenAI, Claude, DeepSeek, Groq, OpenRouter, Custom) y catálogo específico de modelos.
+- [x] 4.4 Verificar compilación local con `npm run build`, commit, push y despliegue en Coolify.

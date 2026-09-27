@@ -18,51 +18,98 @@ export const POST = withAuth(async (session, req: Request) => {
   if (!body.ok) return body.response;
 
   const { baseUrl, model, token } = body.data;
-  const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+  const cleanBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+  const isAnthropic = cleanBaseUrl.includes("anthropic.com") || token.trim().startsWith("sk-ant-");
 
   const startTime = Date.now();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12_000); // 12s timeout
 
   try {
-    const res = await fetch(`${cleanBaseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token.trim()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model.trim(),
-        messages: [
-          { role: "system", content: "You are a test helper. Reply only with JSON: {\"status\": \"ok\"}" },
-          { role: "user", content: "ping" },
-        ],
-        max_tokens: 20,
-      }),
-      signal: controller.signal,
-    });
+    let content: string | undefined;
 
-    clearTimeout(timeoutId);
-    const latencyMs = Date.now() - startTime;
+    if (isAnthropic) {
+      const endpoint = cleanBaseUrl.endsWith("/v1")
+        ? `${cleanBaseUrl}/messages`
+        : `${cleanBaseUrl}/v1/messages`;
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      let parsedMessage = errText;
-      try {
-        const errJson = JSON.parse(errText);
-        parsedMessage = errJson.error?.message || errJson.message || errText;
-      } catch {
-        // mantener errText original
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-api-key": token.trim(),
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model.trim(),
+          system: "You are a test helper. Reply only with JSON: {\"status\": \"ok\"}",
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 30,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        let parsedMessage = errText;
+        try {
+          const errJson = JSON.parse(errText);
+          parsedMessage = errJson.error?.message || errJson.message || errText;
+        } catch {
+          // fallback a errText
+        }
+        return apiError(400, "provider_error", `Anthropic respondió con error (${res.status}): ${parsedMessage.slice(0, 200)}`);
       }
-      return apiError(400, "provider_error", `El proveedor respondió con error (${res.status}): ${parsedMessage.slice(0, 200)}`);
-    }
 
-    const json = await res.json();
-    const content = json.choices?.[0]?.message?.content;
+      const json = await res.json();
+      content = json.content?.find((c: { type: string; text?: string }) => c.type === "text")?.text;
+    } else {
+      const endpoint = cleanBaseUrl.endsWith("/v1")
+        ? `${cleanBaseUrl}/chat/completions`
+        : `${cleanBaseUrl}/v1/chat/completions`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model.trim(),
+          messages: [
+            { role: "system", content: "You are a test helper. Reply only with JSON: {\"status\": \"ok\"}" },
+            { role: "user", content: "ping" },
+          ],
+          max_tokens: 30,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        let parsedMessage = errText;
+        try {
+          const errJson = JSON.parse(errText);
+          parsedMessage = errJson.error?.message || errJson.message || errText;
+        } catch {
+          // mantener errText original
+        }
+        return apiError(400, "provider_error", `El proveedor respondió con error (${res.status}): ${parsedMessage.slice(0, 200)}`);
+      }
+
+      const json = await res.json();
+      content = json.choices?.[0]?.message?.content;
+    }
 
     if (!content) {
       return apiError(422, "empty_response", "El modelo respondió con éxito pero el contenido del mensaje llegó vacío.");
     }
+
+    const latencyMs = Date.now() - startTime;
 
     return Response.json({
       ok: true,

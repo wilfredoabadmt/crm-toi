@@ -31,15 +31,107 @@ interface LlmConfigCardProps {
   onSaved: () => void;
 }
 
-const POPULAR_MODELS = [
-  { id: "openai/gpt-4o-mini", label: "GPT-4o mini", tag: "Rápido y económico" },
-  { id: "deepseek/deepseek-chat", label: "DeepSeek V3", tag: "Excelente razonamiento" },
-  { id: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet", tag: "Máxima precisión" },
-  { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", tag: "Open-source líder" },
-  { id: "openai/gpt-4o", label: "GPT-4o", tag: "Potencia total" },
+interface LlmProvider {
+  id: string;
+  name: string;
+  badge: string;
+  defaultBaseUrl: string;
+  apiKeyHelpUrl: string;
+  tokenPrefixPlaceholder: string;
+  models: { id: string; label: string; tag: string }[];
+}
+
+const PROVIDERS: LlmProvider[] = [
+  {
+    id: "openai",
+    name: "OpenAI (ChatGPT)",
+    badge: "Oficial",
+    defaultBaseUrl: "https://api.openai.com/v1",
+    apiKeyHelpUrl: "https://platform.openai.com/api-keys",
+    tokenPrefixPlaceholder: "sk-proj-...",
+    models: [
+      { id: "gpt-4o-mini", label: "GPT-4o mini", tag: "Económico y veloz" },
+      { id: "gpt-4o", label: "GPT-4o", tag: "Máxima inteligencia" },
+      { id: "o1-mini", label: "o1 mini", tag: "Razonamiento puro" },
+    ],
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic (Claude)",
+    badge: "Oficial",
+    defaultBaseUrl: "https://api.anthropic.com/v1",
+    apiKeyHelpUrl: "https://console.anthropic.com/settings/keys",
+    tokenPrefixPlaceholder: "sk-ant-api03-...",
+    models: [
+      { id: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", tag: "Calidad superior" },
+      { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku", tag: "Ultra rápido" },
+    ],
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    badge: "Oficial",
+    defaultBaseUrl: "https://api.deepseek.com",
+    apiKeyHelpUrl: "https://platform.deepseek.com/api_keys",
+    tokenPrefixPlaceholder: "sk-...",
+    models: [
+      { id: "deepseek-chat", label: "DeepSeek V3", tag: "Gran rendimiento y bajo costo" },
+      { id: "deepseek-reasoner", label: "DeepSeek R1", tag: "Razonamiento profundo" },
+    ],
+  },
+  {
+    id: "groq",
+    name: "Groq Cloud",
+    badge: "Ultra Veloz",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
+    apiKeyHelpUrl: "https://console.groq.com/keys",
+    tokenPrefixPlaceholder: "gsk_...",
+    models: [
+      { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", tag: "Velocidad extrema" },
+      { id: "mixtral-8x7b-32768", label: "Mixtral 8x7B", tag: "Contexto amplio" },
+    ],
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    badge: "Multi-modelo",
+    defaultBaseUrl: "https://openrouter.ai/api",
+    apiKeyHelpUrl: "https://openrouter.ai/keys",
+    tokenPrefixPlaceholder: "sk-or-v1-...",
+    models: [
+      { id: "openai/gpt-4o-mini", label: "GPT-4o mini", tag: "OpenRouter" },
+      { id: "deepseek/deepseek-chat", label: "DeepSeek V3", tag: "OpenRouter" },
+      { id: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet", tag: "OpenRouter" },
+      { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", tag: "OpenRouter" },
+    ],
+  },
+  {
+    id: "custom",
+    name: "Personalizado / Otros",
+    badge: "Z.AI, Ollama, xAI",
+    defaultBaseUrl: "https://api.x.ai/v1",
+    apiKeyHelpUrl: "https://x.ai/api",
+    tokenPrefixPlaceholder: "Tu clave API...",
+    models: [
+      { id: "grok-2-latest", label: "Grok 2 (xAI)", tag: "x.ai" },
+    ],
+  },
 ];
 
+function detectProviderId(baseUrl: string): string {
+  const clean = baseUrl.toLowerCase();
+  if (clean.includes("openai.com")) return "openai";
+  if (clean.includes("anthropic.com")) return "anthropic";
+  if (clean.includes("deepseek.com")) return "deepseek";
+  if (clean.includes("groq.com")) return "groq";
+  if (clean.includes("openrouter.ai")) return "openrouter";
+  return "custom";
+}
+
 export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
+  const [selectedProviderId, setSelectedProviderId] = useState<string>(() =>
+    detectProviderId(initialConfig.baseUrl || "https://openrouter.ai/api")
+  );
   const [baseUrl, setBaseUrl] = useState(initialConfig.baseUrl || "https://openrouter.ai/api");
   const [model, setModel] = useState(initialConfig.model || "openai/gpt-4o-mini");
   const [token, setToken] = useState("");
@@ -52,18 +144,30 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const activeProvider = PROVIDERS.find((p) => p.id === selectedProviderId) || PROVIDERS[0];
+
   useEffect(() => {
+    const provId = detectProviderId(initialConfig.baseUrl || "https://openrouter.ai/api");
+    setSelectedProviderId(provId);
     setBaseUrl(initialConfig.baseUrl || "https://openrouter.ai/api");
     setModel(initialConfig.model || "openai/gpt-4o-mini");
     setIsEditingToken(!initialConfig.configured);
   }, [initialConfig]);
+
+  function handleSelectProvider(provider: LlmProvider) {
+    setSelectedProviderId(provider.id);
+    setBaseUrl(provider.defaultBaseUrl);
+    if (provider.models.length > 0) {
+      setModel(provider.models[0].id);
+    }
+    setTestResult(null);
+  }
 
   async function handleTestConnection() {
     setTesting(true);
     setTestResult(null);
     setSaveError(null);
 
-    // Si no ha ingresado un nuevo token y ya estaba configurado, requerimos ingresar token para testear o probar
     if (!token.trim()) {
       setTestResult({
         ok: false,
@@ -171,38 +275,73 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
           </div>
 
           <a
-            href="https://openrouter.ai/keys"
+            href={activeProvider.apiKeyHelpUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
           >
-            <span>Obtener API Key</span>
+            <span>Obtener clave en {activeProvider.name}</span>
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4 pt-1">
+        {/* Selector de Proveedor Oficial / Custom */}
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            1. Selecciona tu Proveedor o Pasarela
+          </Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {PROVIDERS.map((prov) => {
+              const isSelected = selectedProviderId === prov.id;
+              return (
+                <button
+                  key={prov.id}
+                  type="button"
+                  onClick={() => handleSelectProvider(prov)}
+                  className={`p-2.5 rounded-lg border text-left transition-all relative ${
+                    isSelected
+                      ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
+                      : "border-border/70 bg-card hover:border-foreground/30 hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-medium ${isSelected ? "text-primary" : "text-foreground"}`}>
+                      {prov.name}
+                    </span>
+                    <Badge variant="outline" className={`text-[10px] px-1 py-0 h-4 ${
+                      isSelected ? "border-primary text-primary" : "text-muted-foreground"
+                    }`}>
+                      {prov.badge}
+                    </Badge>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Endpoint / Base URL */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="llm-base-url" className="text-xs flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-              Endpoint Base (Compatible OpenAI)
+              URL Base del Endpoint
             </Label>
             <button
               type="button"
-              onClick={() => setBaseUrl("https://openrouter.ai/api")}
+              onClick={() => setBaseUrl(activeProvider.defaultBaseUrl)}
               className="text-[11px] text-primary hover:underline"
             >
-              Restablecer OpenRouter
+              Restablecer URL de {activeProvider.name}
             </button>
           </div>
           <Input
             id="llm-base-url"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder="https://openrouter.ai/api"
+            placeholder={activeProvider.defaultBaseUrl}
             className="text-xs font-mono"
           />
         </div>
@@ -217,28 +356,30 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
             id="llm-model"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder="openai/gpt-4o-mini"
+            placeholder={activeProvider.models[0]?.id || "gpt-4o-mini"}
             className="text-xs font-mono"
           />
 
-          {/* Modelos sugeridos */}
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {POPULAR_MODELS.map((pm) => (
-              <button
-                key={pm.id}
-                type="button"
-                onClick={() => setModel(pm.id)}
-                className={`text-[11px] px-2.5 py-1 rounded-md border transition-all flex items-center gap-1.5 ${
-                  model === pm.id
-                    ? "border-primary bg-primary/10 text-primary font-medium"
-                    : "border-border/80 bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                }`}
-              >
-                <span>{pm.label}</span>
-                <span className="text-[9px] opacity-70">({pm.tag})</span>
-              </button>
-            ))}
-          </div>
+          {/* Modelos sugeridos según el proveedor activo */}
+          {activeProvider.models.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {activeProvider.models.map((pm) => (
+                <button
+                  key={pm.id}
+                  type="button"
+                  onClick={() => setModel(pm.id)}
+                  className={`text-[11px] px-2.5 py-1 rounded-md border transition-all flex items-center gap-1.5 ${
+                    model === pm.id
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border/80 bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                  }`}
+                >
+                  <span>{pm.label}</span>
+                  <span className="text-[9px] opacity-70">({pm.tag})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* API Token */}
@@ -246,7 +387,7 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
           <div className="flex items-center justify-between">
             <Label htmlFor="llm-token" className="text-xs flex items-center gap-1.5">
               <Key className="w-3.5 h-3.5 text-muted-foreground" />
-              API Key / Token del Proveedor
+              API Key / Clave Privada ({activeProvider.name})
             </Label>
             {initialConfig.tokenLast4 && !isEditingToken && (
               <button
@@ -261,7 +402,7 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
 
           {!isEditingToken && initialConfig.tokenLast4 ? (
             <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2 text-xs font-mono text-muted-foreground">
-              <span>sk-or-••••••••••••••••••••••••{initialConfig.tokenLast4}</span>
+              <span>••••••••••••••••••••••••{initialConfig.tokenLast4}</span>
               <span className="text-[11px] text-emerald-600 font-sans font-medium flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Cifrada en BD
@@ -274,11 +415,11 @@ export function LlmConfigCard({ initialConfig, onSaved }: LlmConfigCardProps) {
                 type="password"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="sk-or-v1-..."
+                placeholder={activeProvider.tokenPrefixPlaceholder}
                 className="text-xs font-mono"
               />
               <p className="text-[11px] text-muted-foreground">
-                Tu clave se almacena cifrada con AES-256-GCM y se actualiza de inmediato en el entorno del CRM.
+                Tu clave se almacena cifrada con AES-256-GCM y se sincroniza en caliente en el entorno del CRM.
               </p>
             </div>
           )}

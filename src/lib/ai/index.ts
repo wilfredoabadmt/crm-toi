@@ -118,21 +118,86 @@ async function callProvider(input: {
   const { baseUrl, model, token, messages, timeoutMs = 60_000 } = input;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  const cleanBase = baseUrl.trim().replace(/\/+$/, "");
+  const isAnthropic = cleanBase.includes("anthropic.com") || token.trim().startsWith("sk-ant-");
+
   try {
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    if (isAnthropic) {
+      // Formato oficial Anthropic Messages API
+      const endpoint = cleanBase.endsWith("/v1")
+        ? `${cleanBase}/messages`
+        : `${cleanBase}/v1/messages`;
+
+      const systemMsg = messages
+        .filter((m) => m.role === "system")
+        .map((m) => m.content)
+        .join("\n\n");
+
+      const conversationMessages = messages
+        .filter((m) => m.role !== "system")
+        .map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        }));
+
+      // Si no quedaron mensajes de conversación, enviar un placeholder
+      if (conversationMessages.length === 0) {
+        conversationMessages.push({ role: "user", content: "Genera la respuesta solicitada." });
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "x-api-key": token.trim(),
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model.trim(),
+          system: systemMsg || undefined,
+          messages: conversationMessages,
+          max_tokens: 4096,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`proveedor Anthropic respondió ${res.status}: ${truncate(text)}`);
+      }
+
+      const json = (await res.json()) as {
+        content?: { type: string; text?: string }[];
+      };
+      const textBlock = json.content?.find((c) => c.type === "text")?.text;
+      if (typeof textBlock !== "string" || textBlock.length === 0) {
+        throw new Error("respuesta de Anthropic sin contenido de texto");
+      }
+      return textBlock;
+    }
+
+    // Formato estándar compatible OpenAI (OpenAI, DeepSeek, Groq, xAI, OpenRouter, Custom, etc.)
+    const endpoint = cleanBase.endsWith("/v1")
+      ? `${cleanBase}/chat/completions`
+      : `${cleanBase}/v1/chat/completions`;
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         // El token jamás se loguea; solo viaja en este header.
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token.trim()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({ model: model.trim(), messages }),
       signal: controller.signal,
     });
+
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
     }
+
     const json = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
