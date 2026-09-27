@@ -25,6 +25,7 @@ const RANGE_LABELS: Record<DateRange, string> = {
   today: "Hoy",
   "7d": "Últimos 7 días",
   "30d": "Últimos 30 días",
+  "60d": "Últimos 60 días",
   month: "Este mes",
 };
 
@@ -74,7 +75,7 @@ export function ReportsClient() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center bg-accent/40 p-1 rounded-lg border">
-            {(["today", "7d", "30d", "month"] as DateRange[]).map((r) => (
+            {(["today", "7d", "30d", "60d", "month"] as DateRange[]).map((r) => (
               <button
                 key={r}
                 type="button"

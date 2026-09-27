@@ -11,7 +11,7 @@ export const GET = withAuth(async (session, req: Request) => {
   try {
     const url = new URL(req.url);
     const rangeParam = url.searchParams.get("range") || "7d";
-    const validRanges: DateRange[] = ["today", "7d", "30d", "month"];
+    const validRanges: DateRange[] = ["today", "7d", "30d", "60d", "month"];
     const range: DateRange = validRanges.includes(rangeParam as DateRange)
       ? (rangeParam as DateRange)
       : "7d";

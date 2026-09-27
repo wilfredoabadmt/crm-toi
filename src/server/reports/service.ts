@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { DEPARTMENTS, getDepartmentByStageName } from "@/lib/departments";
 
-export type DateRange = "today" | "7d" | "30d" | "month";
+export type DateRange = "today" | "7d" | "30d" | "60d" | "month";
 
 export interface AnalyticsSummary {
   range: DateRange;
@@ -69,6 +69,10 @@ function getRangeDates(range: DateRange): { start: Date; end: Date } {
       break;
     case "30d":
       start.setDate(end.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case "60d":
+      start.setDate(end.getDate() - 60);
       start.setHours(0, 0, 0, 0);
       break;
     case "month":
