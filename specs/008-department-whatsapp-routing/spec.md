@@ -68,7 +68,17 @@ Esto garantiza que:
 ## 3. Requisitos Funcionales Clave
 
 1. **FR-DEPWABA-01**: Cada departamento registrado en el sistema debe soportar un identificador de teléfono (`phoneNumberId`), número visible (`displayPhoneNumber`) y etiqueta del área.
-2. **FR-DEPWABA-02**: Las conversaciones deben registrar la línea telefónica (`phoneNumberId`) por la cual se inició el contacto.
-3. **FR-DEPWABA-03**: El envío de mensajes salientes (manuales o de IA) debe seleccionar dinámicamente las credenciales del número asociado al departamento de la conversación.
-4. **FR-DEPWABA-04**: El prompt del Agente IA debe contener las variables de números directos de cada área para generar enlaces de derivación instantánea (`https://wa.me/...`).
+2. **FR-DEPWABA-02**: Las conversaciones se aíslan por par `(contactId, phoneNumberId)`: si un cliente escribe a dos números de departamento diferentes, tiene dos conversaciones separadas en cada departamento sin mezclar historiales.
+3. **FR-DEPWABA-03**: El envío de mensajes salientes (manuales o de IA) debe seleccionar dinámicamente el `phoneNumberId` asociado a la conversación y departamento correspondiente.
+4. **FR-DEPWABA-04**: El prompt del Agente IA debe contener los números directos de cada área para generar enlaces de derivación instantánea (`https://wa.me/...`) que transfieren al cliente al número del departamento que resuelve su necesidad.
 5. **FR-DEPWABA-05**: Filtrado estricto por departamento en la bandeja de entrada según el rol y membresía del usuario activo.
+6. **FR-DEPWABA-06**: Gestión centralizada de credenciales bajo el WABA principal de Tech Provider (un único token de acceso con múltiples `phoneNumberId` autorizados).
+
+---
+
+## 4. Decisiones y Clarificaciones de Negocio
+
+- **Modelo de conversaciones:** Hilos separados por departamento. Si el cliente escribe al WhatsApp Técnico se atiende en el hilo de Soporte, y si escribe al de Cobranzas se atiende en el hilo de Administración.
+- **Mecanismo de derivación del Agente IA:** El agente despide amablemente la conversación actual y entrega el botón/enlace de WhatsApp (`https://wa.me/NUMERO?text=...`) con texto prellenado para que el cliente continúe en el WhatsApp del departamento respectivo.
+- **Topología de credenciales de Meta:** Un solo token WABA principal para todos los números (modelo Tech Provider con WABA compartida), asignando a cada departamento su respectivo `phoneNumberId` y `displayPhoneNumber`.
+
