@@ -16,6 +16,7 @@ export async function GET() {
 const putSchema = z.object({
   name: z.string().trim().min(1).max(30),
   accent: z.string().refine(isValidHex, "Color hex inválido (#rrggbb)"),
+  logoUrl: z.string().nullable().optional(),
 });
 
 export const PUT = withAuth(async (session, req: Request) => {

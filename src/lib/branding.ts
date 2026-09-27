@@ -16,6 +16,7 @@ export type Branding = {
   name: string;
   accent: string; // hex del acento base elegido
   iconUrl?: string;
+  logoUrl?: string;
 };
 
 export const DEFAULT_BRANDING: Branding = { name: "TOI", accent: "#1a75ff" };
@@ -121,5 +122,9 @@ export function normalizeBranding(input: Partial<Branding> | null): Branding {
     input?.accent && isValidHex(input.accent)
       ? input.accent.toLowerCase()
       : DEFAULT_BRANDING.accent;
-  return { name, accent };
+  const logoUrl =
+    typeof input?.logoUrl === "string" && input.logoUrl.trim().length > 0
+      ? input.logoUrl.trim()
+      : undefined;
+  return { name, accent, ...(logoUrl ? { logoUrl } : {}) };
 }

@@ -184,7 +184,7 @@ export function AppNav({
       <div className="mb-4 flex items-center gap-2.5 px-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/logotoi.webp"
+          src={branding.logoUrl || "/logotoi.webp"}
           alt={branding.name}
           className="h-8 w-auto max-w-[36px] object-contain shrink-0 rounded-sm"
           onError={(e) => {
