@@ -164,7 +164,31 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
         ? `[DOC:${msg.document.id}:${name}] ${caption}`
         : `[DOC:${msg.document.id}:${name}]`;
     } else if (msg.type === "audio" && msg.audio) {
-      messageText = `[AUDIO:${msg.audio.id}]`;
+      let transcript: string | null = null;
+      if (credentials?.token) {
+        try {
+          const { downloadMetaMediaBuffer } = await import("@/server/inbox/media-storage");
+          const { transcribeAudio } = await import("@/server/ai/transcription");
+          const audioData = await downloadMetaMediaBuffer({
+            mediaId: msg.audio.id,
+            token: credentials.token,
+          });
+          if (audioData) {
+            transcript = await transcribeAudio({
+              buffer: audioData.buffer,
+              mimeType: audioData.mimeType,
+              filename: audioData.filename,
+              organizationId,
+            });
+          }
+        } catch (err) {
+          console.warn("[ingest] No se pudo transcribir el audio:", err);
+        }
+      }
+
+      messageText = transcript
+        ? `[AUDIO:${msg.audio.id}] 🎙️ "${transcript}"`
+        : `[AUDIO:${msg.audio.id}]`;
     } else if (msg.type === "video" && msg.video) {
       const caption = msg.video.caption?.trim();
       messageText = caption

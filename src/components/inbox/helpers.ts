@@ -78,14 +78,14 @@ export function parseMediaContent(type: string, text: string | null): ParsedMedi
     };
   }
 
-  // 3. [AUDIO:id]
-  const audioMatch = text.match(/^\[AUDIO:([^\]]+)\]/);
+  // 3. [AUDIO:id] opcionalmente con 🎙️ "transcripción"
+  const audioMatch = text.match(/^\[AUDIO:([^\]]+)\](?:\s*🎙️\s*"?(.*?)"?)?$/s);
   if (audioMatch) {
     return {
       isMedia: true,
       type: "audio",
       url: `/api/inbox/media?id=${encodeURIComponent(audioMatch[1]!)}`,
-      caption: null,
+      caption: audioMatch[2]?.trim() || null,
     };
   }
 
@@ -142,7 +142,11 @@ export function previewText(preview: string | null): string {
     const match = preview.match(/^\[DOC:[^:]+:([^\]]+)\]/);
     return `📄 ${match?.[1] ?? "Documento"}`;
   }
-  if (preview.startsWith("[AUDIO:")) return "🎵 Nota de voz";
+  if (preview.startsWith("[AUDIO:")) {
+    const transcriptMatch = preview.match(/🎙️\s*"?(.*?)"?$/);
+    const transcript = transcriptMatch?.[1]?.trim();
+    return transcript ? `🎙️ ${transcript}` : "🎵 Nota de voz";
+  }
   if (preview.startsWith("[VIDEO:")) return "🎥 Video";
   if (preview.startsWith("[IMAGEN:")) {
     const caption = preview.replace(/^\[IMAGEN:[^\]]+\]\s*/, "").trim();

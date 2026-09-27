@@ -85,3 +85,46 @@ export async function persistMetaMediaToR2(input: {
     return null;
   }
 }
+
+/**
+ * Descarga el buffer binario y tipo MIME de un archivo multimedia desde Meta Cloud API.
+ */
+export async function downloadMetaMediaBuffer(input: {
+  mediaId: string;
+  token: string;
+}): Promise<{ buffer: Buffer; mimeType: string; filename: string } | null> {
+  const { mediaId, token } = input;
+  if (!mediaId || !token) return null;
+
+  try {
+    const metaMedia = await graphRequest<{
+      url?: string;
+      mime_type?: string;
+    }>(mediaId.trim(), { token });
+
+    if (!metaMedia?.url) return null;
+
+    const res = await fetch(metaMedia.url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": "curl/8.0",
+      },
+    });
+
+    if (!res.ok) return null;
+
+    const arrayBuf = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
+    const mimeType = metaMedia.mime_type || res.headers.get("content-type") || "audio/ogg";
+    const ext = MIME_EXT_MAP[mimeType] || ".ogg";
+
+    return {
+      buffer,
+      mimeType,
+      filename: `${mediaId}${ext}`,
+    };
+  } catch (err) {
+    console.warn(`[media-storage] Error al obtener buffer de mediaId=${mediaId}:`, err);
+    return null;
+  }
+}

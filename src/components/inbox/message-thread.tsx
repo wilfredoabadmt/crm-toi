@@ -169,11 +169,17 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
                       <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     </a>
                   ) : media.isMedia && media.url && media.type === "audio" ? (
-                    <div className="py-1">
+                    <div className="py-1 space-y-1.5">
                       <audio controls className="h-8 max-w-[240px]">
                         <source src={media.url} />
                         Tu navegador no soporta audio.
                       </audio>
+                      {media.caption && (
+                        <div className="text-xs bg-muted/60 dark:bg-muted/30 border border-border/50 rounded px-2.5 py-1.5 flex items-start gap-1.5 max-w-[280px]">
+                          <span className="shrink-0 text-sm">🎙️</span>
+                          <span className="italic text-foreground/90">{media.caption}</span>
+                        </div>
+                      )}
                     </div>
                   ) : m.type === "text" || m.type === "template" ? (
                     <span className="whitespace-pre-wrap break-words">
