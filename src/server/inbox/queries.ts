@@ -16,6 +16,8 @@ export type ConversationDto = {
   windowOpen: boolean;
   windowRemainingMs: number;
   preview: string | null;
+  phoneNumberId?: string | null;
+  departmentId?: string | null;
 };
 
 export async function listConversations(
@@ -126,6 +128,8 @@ export function serializeConversation(
     windowOpen: isWindowOpen(c.lastInboundAt),
     windowRemainingMs: windowRemainingMs(c.lastInboundAt),
     preview,
+    phoneNumberId: c.phoneNumberId,
+    departmentId: c.departmentId,
   };
 }
 

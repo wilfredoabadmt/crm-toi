@@ -13,6 +13,8 @@ export type ConversationDto = {
   windowOpen: boolean;
   windowRemainingMs: number;
   preview: string | null;
+  phoneNumberId?: string | null;
+  departmentId?: string | null;
 };
 
 export type MessageDto = {

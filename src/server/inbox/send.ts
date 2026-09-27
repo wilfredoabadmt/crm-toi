@@ -5,6 +5,7 @@ import { graphRequest, MetaApiError, normalizeRecipient } from "@/lib/meta/clien
 import { publish } from "@/server/events/bus";
 import {
   getCredentialsByOrg,
+  getCredentialsForLine,
   markReconnectRequired,
   type Credentials,
 } from "@/server/whatsapp/credentials";
@@ -75,7 +76,10 @@ export async function sendText(input: {
     );
   }
 
-  const credentials = await getCredentialsByOrg(input.organizationId);
+  const credentials = await getCredentialsForLine(
+    input.organizationId,
+    row.conversation.phoneNumberId
+  );
   if (!credentials) {
     throw new SendError("not_connected", "No hay número de WhatsApp conectado");
   }
@@ -168,7 +172,10 @@ export async function sendImage(input: {
     );
   }
 
-  const credentials = await getCredentialsByOrg(input.organizationId);
+  const credentials = await getCredentialsForLine(
+    input.organizationId,
+    row.conversation.phoneNumberId
+  );
   if (!credentials) {
     throw new SendError("not_connected", "No hay número de WhatsApp conectado");
   }

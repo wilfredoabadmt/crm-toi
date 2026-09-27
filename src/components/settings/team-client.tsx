@@ -61,7 +61,17 @@ export function TeamClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [assignments, setAssignments] = useState<
-    Record<string, { name: string; email: string; memberEmails: string[] }>
+    Record<
+      string,
+      {
+        name: string;
+        email: string;
+        memberEmails: string[];
+        phoneNumberId?: string;
+        displayPhoneNumber?: string;
+        verifiedName?: string;
+      }
+    >
   >({});
   const [savingAssignments, setSavingAssignments] = useState(false);
   const [savedAssignments, setSavedAssignments] = useState(false);
@@ -113,6 +123,9 @@ export function TeamClient() {
           name: d.assignedName,
           email: d.assignedEmail,
           memberEmails: merged,
+          phoneNumberId: d.phoneNumberId,
+          displayPhoneNumber: d.displayPhoneNumber,
+          verifiedName: d.verifiedName,
         };
       }
       setAssignments(initial);
@@ -836,13 +849,13 @@ export function TeamClient() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 sm:w-72">
+                      <div className="flex flex-col gap-2 shrink-0 sm:w-80">
                         <div className="w-full">
                           <label
                             htmlFor={`titular-${dep.id}`}
                             className="block text-[11px] font-semibold text-muted-foreground mb-1"
                           >
-                            Responsable titular (contacto principal):
+                            Responsable titular:
                           </label>
                           <select
                             id={`titular-${dep.id}`}
@@ -851,7 +864,7 @@ export function TeamClient() {
                             onChange={(e) =>
                               handleTitularChange(dep.id, e.target.value)
                             }
-                            className="h-9 w-full rounded-md border bg-background px-3 py-1 text-xs shadow-2xs focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand font-medium"
+                            className="h-8.5 w-full rounded-md border bg-background px-3 py-1 text-xs shadow-2xs focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand font-medium"
                           >
                             {members.map((m) => (
                               <option key={m.id} value={m.email}>
@@ -861,15 +874,91 @@ export function TeamClient() {
                           </select>
                         </div>
 
+                        {/* Configuración de WhatsApp del Departamento */}
+                        <div className="rounded-lg border bg-background/60 p-2.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                              WhatsApp Asignado
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">Línea Oficial</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2">
+                            <div>
+                              <label
+                                htmlFor={`phone-disp-${dep.id}`}
+                                className="block text-[10px] text-muted-foreground mb-0.5"
+                              >
+                                Número visible (ej. +591 71234567):
+                              </label>
+                              <input
+                                id={`phone-disp-${dep.id}`}
+                                type="text"
+                                placeholder="+591 ..."
+                                value={current.displayPhoneNumber ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setAssignments((prev) => ({
+                                    ...prev,
+                                    [dep.id]: {
+                                      ...prev[dep.id]!,
+                                      displayPhoneNumber: val,
+                                    },
+                                  }));
+                                }}
+                                onBlur={() =>
+                                  void persistAssignments(
+                                    assignments,
+                                    `Número de WhatsApp actualizado para ${dep.shortName}`
+                                  )
+                                }
+                                className="h-7.5 w-full rounded border bg-background px-2 text-xs text-foreground focus:border-brand focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`phone-id-${dep.id}`}
+                                className="block text-[10px] text-muted-foreground mb-0.5"
+                              >
+                                Phone Number ID (Meta Cloud API):
+                              </label>
+                              <input
+                                id={`phone-id-${dep.id}`}
+                                type="text"
+                                placeholder="ID numérico de Meta"
+                                value={current.phoneNumberId ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setAssignments((prev) => ({
+                                    ...prev,
+                                    [dep.id]: {
+                                      ...prev[dep.id]!,
+                                      phoneNumberId: val,
+                                    },
+                                  }));
+                                }}
+                                onBlur={() =>
+                                  void persistAssignments(
+                                    assignments,
+                                    `Phone Number ID actualizado para ${dep.shortName}`
+                                  )
+                                }
+                                className="h-7.5 w-full rounded border bg-background px-2 text-xs font-mono text-muted-foreground focus:border-brand focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         {isCustomDep && (
                           <Button
                             size="sm"
                             variant="ghost"
                             title={`Eliminar ${dep.name}`}
                             onClick={() => void handleDeleteCustomDepartment(dep)}
-                            className="h-9 w-9 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive self-end shrink-0"
+                            className="h-8 w-full text-xs text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Eliminar Departamento
                           </Button>
                         )}
                       </div>

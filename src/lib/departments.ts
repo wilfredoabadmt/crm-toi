@@ -20,6 +20,9 @@ export interface DepartmentConfig {
   icon?: "building" | "credit-card" | "wrench" | "shopping-bag" | string;
   description: string;
   keywords?: string[];
+  phoneNumberId?: string; // ID del número de WhatsApp en Meta Cloud API
+  displayPhoneNumber?: string; // Número telefónico legible (ej. +591 71234567)
+  verifiedName?: string; // Nombre verificado en Meta
 }
 
 export const DEPARTMENTS: DepartmentConfig[] = [
@@ -284,6 +287,14 @@ export function getRecommendedStagesForDepartment(
   ];
 }
 
+function formatWaLink(phone?: string | null, text?: string): string {
+  if (!phone) return "";
+  const cleanPhone = phone.replace(/[^0-9]/g, "");
+  if (!cleanPhone) return "";
+  const encodedText = text ? `?text=${encodeURIComponent(text)}` : "";
+  return `https://wa.me/${cleanPhone}${encodedText}`;
+}
+
 /**
  * Genera la directiva de sistema para el agente de IA con las reglas de derivación.
  */
@@ -295,13 +306,18 @@ export function buildDepartmentRoutingPrompt(
   const comercial = departments.find((d) => d.id === "comercial") ?? DEPARTMENTS[2]!;
   const gerencia = departments.find((d) => d.id === "gerencia") ?? DEPARTMENTS[3]!;
 
+  const linkTecnico = formatWaLink(tecnico.displayPhoneNumber, "Hola, me comunicaba para soporte técnico");
+  const linkAdmin = formatWaLink(admin.displayPhoneNumber, "Hola, me comunicaba para temas administrativos o pagos");
+  const linkComercial = formatWaLink(comercial.displayPhoneNumber, "Hola, me comunicaba para consultar planes y ventas");
+  const linkGerencia = formatWaLink(gerencia.displayPhoneNumber, "Hola, me comunicaba para comunicarme con Gerencia");
+
   const lines = [
     "REGLAS DE DERIVACIÓN INMEDIATA POR DEPARTAMENTO O SUCURSAL:",
-    "Cuando un cliente manifieste su necesidad o ubicación, clasifícalo en el departamento correspondiente:",
-    `- Falla técnica, corte de internet, lentitud, router o avería → Mueve a etapa: 'Departamento técnico'. Despídete amablemente: 'He transferido tu reporte al Departamento Técnico. ${tecnico.assignedName} de nuestro equipo ya lo tiene en pantalla y te responderá por aquí.' y ejecuta handoff.`,
-    `- Facturación, pagos, comprobantes, prórrogas o cobranzas → Mueve a etapa: 'Departamento administrativo'. Despídete: 'He transferido tu solicitud al Departamento Administrativo. ${admin.assignedName} revisará tu estado de cuenta y continuará tu atención.' y ejecuta handoff.`,
-    `- Nuevos planes, contratación de servicio, precios o cotizaciones → Mueve a etapa: 'Departamento comercial'. Despídete: 'Excelente. He derivado tu consulta al Departamento Comercial. ${comercial.assignedName} te atenderá para coordinar tu servicio.' y ejecuta handoff.`,
-    `- Reclamos formales graves, alianzas o asuntos ejecutivos → Mueve a etapa: 'Gerencia'. Despídete: 'He canalizado tu caso a la Gerencia con ${gerencia.assignedName} para su atención directa.' y ejecuta handoff.`,
+    "Cuando un cliente manifieste su necesidad o ubicación, clasifícalo en el departamento correspondiente y facilítale el contacto directo de WhatsApp:",
+    `- Falla técnica, corte de internet, lentitud, router o avería → Mueve a etapa: 'Departamento técnico'. Despídete amablemente: 'He transferido tu reporte al Departamento Técnico con ${tecnico.assignedName}.${linkTecnico ? ` Puedes continuar directamente en su WhatsApp haciendo clic aquí: ${linkTecnico}` : " Ya lo tienen en pantalla y te responderán a la brevedad."}' y ejecuta handoff.`,
+    `- Facturación, pagos, comprobantes, prórrogas o cobranzas → Mueve a etapa: 'Departamento administrativo'. Despídete: 'He transferido tu solicitud al Departamento Administrativo con ${admin.assignedName}.${linkAdmin ? ` Puedes escribir directamente a su WhatsApp aquí: ${linkAdmin}` : " Revisarán tu estado de cuenta en breve."}' y ejecuta handoff.`,
+    `- Nuevos planes, contratación de servicio, precios o cotizaciones → Mueve a etapa: 'Departamento comercial'. Despídete: 'Excelente. He derivado tu consulta al Departamento Comercial con ${comercial.assignedName}.${linkComercial ? ` Puedes coordinar directamente en su WhatsApp aquí: ${linkComercial}` : " Te atenderán para coordinar tu servicio."}' y ejecuta handoff.`,
+    `- Reclamos formales graves, alianzas o asuntos ejecutivos → Mueve a etapa: 'Gerencia'. Despídete: 'He canalizado tu caso a la Gerencia con ${gerencia.assignedName}.${linkGerencia ? ` Puedes comunicarte directamente a su WhatsApp aquí: ${linkGerencia}` : " para su atención directa."}' y ejecuta handoff.`,
   ];
 
   const customDeps = departments.filter(
@@ -309,8 +325,9 @@ export function buildDepartmentRoutingPrompt(
   );
 
   for (const dep of customDeps) {
+    const linkCustom = formatWaLink(dep.displayPhoneNumber, `Hola, me comunicaba con ${dep.name}`);
     lines.push(
-      `- Atención en ${dep.name} (${dep.description || dep.shortName}) → Mueve a etapa: '${dep.name}'. Despídete: 'He transferido tu solicitud a ${dep.name}. ${dep.assignedName} de nuestro equipo te atenderá de inmediato.' y ejecuta handoff.`
+      `- Atención en ${dep.name} (${dep.description || dep.shortName}) → Mueve a etapa: '${dep.name}'. Despídete: 'He transferido tu solicitud a ${dep.name} con ${dep.assignedName}.${linkCustom ? ` Puedes escribir directamente a su WhatsApp aquí: ${linkCustom}` : " Te atenderán de inmediato."}' y ejecuta handoff.`
     );
   }
 

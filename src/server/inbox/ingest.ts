@@ -68,26 +68,38 @@ export async function getOrCreateContact(
 
 export async function getOrCreateConversation(
   organizationId: string,
-  contactId: string
+  contactId: string,
+  phoneNumberId?: string | null,
+  departmentId?: string | null
 ) {
   const db = getDb();
   const inserted = await db
     .insert(schema.conversation)
-    .values({ id: newId("conversation"), organizationId, contactId })
+    .values({
+      id: newId("conversation"),
+      organizationId,
+      contactId,
+      phoneNumberId: phoneNumberId ?? null,
+      departmentId: departmentId ?? null,
+    })
     .onConflictDoNothing()
     .returning();
   if (inserted[0]) return inserted[0];
 
+  const whereConditions = [
+    eq(schema.conversation.organizationId, organizationId),
+    eq(schema.conversation.contactId, contactId),
+    eq(schema.conversation.isTest, false),
+  ];
+
+  if (phoneNumberId) {
+    whereConditions.push(eq(schema.conversation.phoneNumberId, phoneNumberId));
+  }
+
   const rows = await db
     .select()
     .from(schema.conversation)
-    .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
-        eq(schema.conversation.contactId, contactId),
-        eq(schema.conversation.isTest, false)
-      )
-    )
+    .where(and(...whereConditions))
     .limit(1);
   const existing = rows[0];
   if (!existing) throw new Error("conversación no encontrada tras upsert");
@@ -170,6 +182,7 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       type: msg.type,
       text: messageText,
       timestamp: msg.timestamp,
+      phoneNumberId,
     });
   }
 }
@@ -182,9 +195,21 @@ export async function ingestInboundMessage(input: {
   type: string;
   text: string | null;
   timestamp: string;
+  phoneNumberId?: string | null;
 }): Promise<void> {
   const db = getDb();
-  const { organizationId } = input;
+  const { organizationId, phoneNumberId } = input;
+
+  // Resolver departamento a partir del phoneNumberId si está asignado
+  let departmentId: string | null = null;
+  if (phoneNumberId) {
+    const { getResolvedDepartments } = await import("@/server/departments");
+    const allDeps = await getResolvedDepartments(organizationId);
+    const matchedDep = allDeps.find((d) => d.phoneNumberId === phoneNumberId);
+    if (matchedDep) {
+      departmentId = matchedDep.id;
+    }
+  }
 
   const { contact } = await getOrCreateContact(
     organizationId,
@@ -193,7 +218,9 @@ export async function ingestInboundMessage(input: {
   );
   const conversation = await getOrCreateConversation(
     organizationId,
-    contact.id
+    contact.id,
+    phoneNumberId,
+    departmentId
   );
 
   const waTimestamp = toDate(input.timestamp);

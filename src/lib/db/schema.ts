@@ -192,14 +192,20 @@ export const conversation = pgTable(
     lastMessageAt: timestamp("last_message_at"),
     unreadCount: integer("unread_count").notNull().default(0),
     lastAwayMessageAt: timestamp("last_away_message_at"),
+    /** Línea de WhatsApp receptora (phone_number_id) del departamento */
+    phoneNumberId: text("phone_number_id"),
+    /** Departamento al que pertenece la conversación */
+    departmentId: text("department_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    // Una conversación real por contacto; las de prueba no compiten.
-    uniqueIndex("conversation_org_contact_real_uq")
-      .on(t.organizationId, t.contactId)
+    // Una conversación real por contacto y por número de WhatsApp receptor
+    uniqueIndex("conversation_org_contact_phone_uq")
+      .on(t.organizationId, t.contactId, t.phoneNumberId)
       .where(sql`${t.isTest} = false`),
+    index("conversation_org_dep_idx").on(t.organizationId, t.departmentId),
+    index("conversation_org_phone_idx").on(t.organizationId, t.phoneNumberId),
     index("conversation_org_last_idx").on(t.organizationId, t.lastMessageAt),
   ]
 );

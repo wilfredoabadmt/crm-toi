@@ -64,6 +64,13 @@
       "when": 1789280000000,
       "tag": "0008_business_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790531734258,
+      "tag": "0009_perpetual_shape",
+      "breakpoints": true
     }
   ]
 }

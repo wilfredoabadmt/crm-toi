@@ -72,6 +72,25 @@ export async function getCredentialsByOrg(
   return rows[0] ? toCredentials(rows[0]) : null;
 }
 
+/**
+ * Resuelve las credenciales de Meta para una línea específica (phoneNumberId),
+ * utilizando el token y WABA central de la organización.
+ */
+export async function getCredentialsForLine(
+  organizationId: string,
+  targetPhoneNumberId?: string | null
+): Promise<Credentials | null> {
+  const base = await getCredentialsByOrg(organizationId);
+  if (!base) return null;
+  if (!targetPhoneNumberId || targetPhoneNumberId === base.phoneNumberId) {
+    return base;
+  }
+  return {
+    ...base,
+    phoneNumberId: targetPhoneNumberId,
+  };
+}
+
 export async function saveCredentials(input: {
   organizationId: string;
   wabaId: string;

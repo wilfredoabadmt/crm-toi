@@ -85,6 +85,9 @@ export type DepartmentAssignmentMap = Record<
     email: string;
     memberEmails?: string[];
     members?: { name: string; email: string }[];
+    phoneNumberId?: string;
+    displayPhoneNumber?: string;
+    verifiedName?: string;
   }
 >;
 
@@ -262,6 +265,9 @@ export async function getResolvedDepartments(
         assignedEmail: custom.email,
         memberEmails: allEmails,
         members: custom.members,
+        phoneNumberId: custom.phoneNumberId ?? d.phoneNumberId,
+        displayPhoneNumber: custom.displayPhoneNumber ?? d.displayPhoneNumber,
+        verifiedName: custom.verifiedName ?? d.verifiedName,
       };
     }
     return d;

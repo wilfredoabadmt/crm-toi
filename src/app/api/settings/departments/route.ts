@@ -52,6 +52,9 @@ const departmentConfigSchema = z.object({
   icon: z.enum(["building", "credit-card", "wrench", "shopping-bag"]).default("building"),
   description: z.string(),
   keywords: z.array(z.string()).default([]),
+  phoneNumberId: z.string().optional().nullable(),
+  displayPhoneNumber: z.string().optional().nullable(),
+  verifiedName: z.string().optional().nullable(),
 });
 
 const saveSchema = z.object({
@@ -62,6 +65,9 @@ const saveSchema = z.object({
         name: z.string().min(1),
         email: z.string().email(),
         memberEmails: z.array(z.string().email()).optional(),
+        phoneNumberId: z.string().optional().nullable(),
+        displayPhoneNumber: z.string().optional().nullable(),
+        verifiedName: z.string().optional().nullable(),
       })
     )
     .optional(),

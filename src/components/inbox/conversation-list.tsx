@@ -159,13 +159,21 @@ export function ConversationList({
           })),
         ];
 
+  const resolveConversationDepartment = (c: ConversationDto) => {
+    if (c.departmentId) {
+      const dep = departments.find((d) => d.id === c.departmentId);
+      if (dep) return dep;
+    }
+    return getDepartmentByStageName(c.stageName, departments);
+  };
+
   const visible =
     filter === "all"
       ? searched
       : filter === "unread"
         ? searched.filter((c) => c.unreadCount > 0)
         : searched.filter(
-            (c) => getDepartmentByStageName(c.stageName, departments)?.id === filter
+            (c) => resolveConversationDepartment(c)?.id === filter
           );
 
   return (
@@ -314,8 +322,9 @@ export function ConversationList({
                         )}
                       </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {c.stageName && (() => {
-                          const dep = getDepartmentByStageName(c.stageName, departments);
+                        {(() => {
+                          const dep = resolveConversationDepartment(c);
+                          if (!dep && !c.stageName) return null;
                           return (
                             <span
                               className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium"
@@ -332,10 +341,12 @@ export function ConversationList({
                               <span
                                 className="h-[7px] w-[7px] rounded-full"
                                 style={{
-                                  background: dep ? dep.badgeColor : (STAGE_DOT[c.stageName] ?? "#9ca3af"),
+                                  background: dep ? dep.badgeColor : (STAGE_DOT[c.stageName ?? ""] ?? "#9ca3af"),
                                 }}
                               />
-                              {dep ? `${dep.shortName} · ${dep.assignedName}` : c.stageName}
+                              {dep
+                                ? `${dep.shortName}${dep.displayPhoneNumber ? ` (${dep.displayPhoneNumber})` : ` · ${dep.assignedName}`}`
+                                : c.stageName}
                             </span>
                           );
                         })()}
