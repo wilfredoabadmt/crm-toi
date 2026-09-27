@@ -26,6 +26,7 @@ export default async function AppLayout({
         userName={authSession?.user.name ?? "Usuario"}
         userEmail={authSession?.user.email ?? ""}
         role={session.role}
+        permissions={session.permissions}
         initialDepartments={departments}
       />
       <main className="min-w-0 flex-1 overflow-hidden">{children}</main>

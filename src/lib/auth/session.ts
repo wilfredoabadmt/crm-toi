@@ -2,10 +2,13 @@ import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
 import { resolveMembership } from "@/server/auth/on-signup";
 
+import { resolveEffectivePermissions, type SectionKey } from "@/lib/permissions";
+
 export type SessionContext = {
   userId: string;
   organizationId: string;
   role: string;
+  permissions: SectionKey[];
 };
 
 export class UnauthorizedError extends Error {
@@ -33,6 +36,7 @@ export async function requireSession(): Promise<SessionContext> {
     userId: session.user.id,
     organizationId: membership.organizationId,
     role: membership.role,
+    permissions: resolveEffectivePermissions(membership.role, membership.permissions),
   };
 }
 

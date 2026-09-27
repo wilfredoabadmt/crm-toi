@@ -15,6 +15,7 @@ export const GET = withAuth(async (session) => {
     .select({
       id: schema.member.id,
       role: schema.member.role,
+      permissions: schema.member.permissions,
       createdAt: schema.member.createdAt,
       name: schema.user.name,
       email: schema.user.email,
@@ -26,6 +27,7 @@ export const GET = withAuth(async (session) => {
     members: members.map((m) => ({
       id: m.id,
       role: m.role,
+      permissions: m.permissions ?? null,
       name: m.name,
       email: m.email,
       createdAt: m.createdAt.toISOString(),
@@ -140,3 +142,65 @@ export const DELETE = withAuth(async (session, req: Request) => {
 
   return Response.json({ ok: true });
 });
+
+const updatePermissionsSchema = z.object({
+  memberId: z.string().min(1, "El ID de miembro es requerido"),
+  role: z.enum(["owner", "admin", "member"]).optional(),
+  permissions: z.array(z.string()).optional(),
+});
+
+/** Actualización de rol y permisos granulares de sección (owner only). */
+export const PATCH = withAuth(async (session, req: Request) => {
+  if (session.role !== "owner") {
+    return apiError(403, "forbidden", "Solo el propietario puede modificar roles y permisos");
+  }
+
+  const body = await parseBody(req, updatePermissionsSchema);
+  if (!body.ok) return body.response;
+
+  const { memberId, role, permissions } = body.data;
+  const db = getDb();
+
+  const rows = await db
+    .select({
+      id: schema.member.id,
+      userId: schema.member.userId,
+      role: schema.member.role,
+    })
+    .from(schema.member)
+    .where(
+      and(
+        eq(schema.member.id, memberId),
+        scoped(schema.member.organizationId, session.organizationId)
+      )
+    )
+    .limit(1);
+
+  const target = rows[0];
+  if (!target) {
+    return apiError(404, "not_found", "Miembro no encontrado en la organización");
+  }
+
+  // Prevenir degradar al propietario principal
+  if (target.userId === session.userId && role && role !== "owner") {
+    return apiError(400, "invalid", "No puedes quitarte el rol de propietario a ti mismo");
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (role) {
+    updates.role = role;
+  }
+  if (permissions !== undefined) {
+    updates.permissions = permissions;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db
+      .update(schema.member)
+      .set(updates)
+      .where(eq(schema.member.id, memberId));
+  }
+
+  return Response.json({ ok: true, memberId, role, permissions });
+});
+

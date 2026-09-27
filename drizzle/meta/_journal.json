@@ -85,6 +85,13 @@
       "when": 1790534500000,
       "tag": "0011_agent_llm_config",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790536000000,
+      "tag": "0012_member_permissions",
+      "breakpoints": true
     }
   ]
 }

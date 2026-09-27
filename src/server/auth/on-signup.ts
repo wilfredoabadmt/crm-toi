@@ -67,12 +67,13 @@ export async function resolveActiveOrganizationId(
 
 export async function resolveMembership(
   userId: string
-): Promise<{ organizationId: string; role: string } | null> {
+): Promise<{ organizationId: string; role: string; permissions: string[] | null } | null> {
   const db = getDb();
   const rows = await db
     .select({
       organizationId: schema.member.organizationId,
       role: schema.member.role,
+      permissions: schema.member.permissions,
     })
     .from(schema.member)
     .where(eq(schema.member.userId, userId))

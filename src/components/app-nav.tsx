@@ -42,17 +42,19 @@ import {
   type NotificationPermissionState,
 } from "@/lib/sound-notifications";
 
+import { hasSectionAccess, type SectionKey } from "@/lib/permissions";
+
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/appointments", label: "Agenda", icon: CalendarDays },
-  { href: "/campaigns", label: "Campañas", icon: Megaphone },
-  { href: "/contacts", label: "Contactos", icon: Users },
-  { href: "/todos", label: "Tareas", icon: CheckSquare },
-  { href: "/coverage", label: "Cobertura NAP", icon: MapPin },
-  { href: "/agent", label: "Agente", icon: Sparkles },
-  { href: "/lab", label: "Laboratorio", icon: FlaskConical },
+  { key: "dashboard" as SectionKey, href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "inbox" as SectionKey, href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
+  { key: "pipeline" as SectionKey, href: "/pipeline", label: "Pipeline", icon: Kanban },
+  { key: "appointments" as SectionKey, href: "/appointments", label: "Agenda", icon: CalendarDays },
+  { key: "campaigns" as SectionKey, href: "/campaigns", label: "Campañas", icon: Megaphone },
+  { key: "contacts" as SectionKey, href: "/contacts", label: "Contactos", icon: Users },
+  { key: "todos" as SectionKey, href: "/todos", label: "Tareas", icon: CheckSquare },
+  { key: "coverage" as SectionKey, href: "/coverage", label: "Cobertura NAP", icon: MapPin },
+  { key: "agent" as SectionKey, href: "/agent", label: "Agente", icon: Sparkles },
+  { key: "lab" as SectionKey, href: "/lab", label: "Laboratorio", icon: FlaskConical },
 ] as const;
 
 export function AppNav({
@@ -60,12 +62,14 @@ export function AppNav({
   userName,
   userEmail = "",
   role,
+  permissions = [],
   initialDepartments = [],
 }: {
   branding: Branding;
   userName: string;
   userEmail?: string;
   role: string;
+  permissions?: SectionKey[];
   initialDepartments?: DepartmentConfig[];
 }) {
   const pathname = usePathname();
@@ -200,7 +204,7 @@ export function AppNav({
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((item) => {
+        {NAV.filter((item) => hasSectionAccess(role, permissions, item.key)).map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

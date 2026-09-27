@@ -14,6 +14,8 @@ import {
   Users,
   Wrench,
   X,
+  Shield,
+  ShieldAlert,
 } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,10 +31,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { DepartmentConfig } from "@/lib/departments";
+import {
+  ALL_SECTIONS,
+  ALL_SECTION_KEYS,
+  DEFAULT_ADMIN_PERMISSIONS,
+  DEFAULT_MEMBER_PERMISSIONS,
+  resolveEffectivePermissions,
+  type SectionKey,
+} from "@/lib/permissions";
 
 type Member = {
   id: string;
   role: string;
+  permissions?: string[] | null;
   name: string;
   email: string;
   createdAt: string;
@@ -87,9 +98,56 @@ export function TeamClient() {
   const [newDepTitularEmail, setNewDepTitularEmail] = useState("");
   const [creatingDep, setCreatingDep] = useState(false);
 
+  // Modal de Permisos y Roles
+  const [permModalMember, setPermModalMember] = useState<Member | null>(null);
+  const [permRole, setPermRole] = useState<string>("member");
+  const [permSections, setPermSections] = useState<SectionKey[]>([]);
+  const [savingPerms, setSavingPerms] = useState(false);
+
   const showFeedback = (msg: string) => {
     setActionFeedback(msg);
     setTimeout(() => setActionFeedback(null), 3500);
+  };
+
+  const openPermissionsModal = (m: Member) => {
+    setPermModalMember(m);
+    setPermRole(m.role);
+    const eff = resolveEffectivePermissions(m.role, m.permissions);
+    setPermSections(eff);
+  };
+
+  const handleToggleSection = (key: SectionKey) => {
+    if (permSections.includes(key)) {
+      setPermSections(permSections.filter((k) => k !== key));
+    } else {
+      setPermSections([...permSections, key]);
+    }
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permModalMember) return;
+    setSavingPerms(true);
+
+    const res = await fetch("/api/settings/team", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberId: permModalMember.id,
+        role: permRole,
+        permissions: permSections,
+      }),
+    }).catch(() => null);
+
+    setSavingPerms(false);
+
+    if (res?.ok) {
+      showFeedback(`Permisos actualizados para "${permModalMember.name}"`);
+      setPermModalMember(null);
+      void refetch();
+    } else {
+      const err = await res?.json().catch(() => null);
+      alert(err?.error?.message ?? "No se pudieron actualizar los permisos");
+    }
   };
 
   const refetch = useCallback(async () => {
@@ -674,8 +732,14 @@ export function TeamClient() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold">{m.name}</p>
-                      <Badge variant={isOwner ? "default" : "secondary"} className="text-[10px] h-4.5 px-1.5">
-                        {isOwner ? "Propietario" : "Miembro"}
+                      <Badge
+                        variant={isOwner ? "default" : m.role === "admin" ? "outline" : "secondary"}
+                        className={cn(
+                          "text-[10px] h-4.5 px-1.5",
+                          m.role === "admin" && "border-brand text-brand font-medium"
+                        )}
+                      >
+                        {isOwner ? "Propietario" : m.role === "admin" ? "Administrador" : "Miembro"}
                       </Badge>
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{m.email}</p>
@@ -736,6 +800,19 @@ export function TeamClient() {
                     ))}
                     <option value="none">Quitar de todas las áreas</option>
                   </select>
+
+                  {!isOwner && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label={`Permisos de ${m.name}`}
+                      onClick={() => openPermissionsModal(m)}
+                      className="h-8 gap-1.5 text-xs text-brand border-brand/30 hover:bg-brand/10 hover:border-brand/50"
+                    >
+                      <Shield className="h-3.5 w-3.5 text-brand" />
+                      <span>Roles y Permisos</span>
+                    </Button>
+                  )}
 
                   {!isOwner && (
                     <Button
@@ -1321,6 +1398,167 @@ export function TeamClient() {
                 onClick={() => void handleCreateDepartment()}
               >
                 {creatingDep ? "Creando…" : "Crear Departamento / Sucursal"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Asignación de Roles y Permisos por Secciones */}
+      {permModalMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-xl rounded-xl border bg-card p-6 shadow-xl space-y-5 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between border-b pb-3">
+              <div>
+                <h3 className="text-base font-semibold flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-brand" />
+                  Roles y Permisos de Acceso
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Configura el rol y las secciones habilitadas para{" "}
+                  <strong className="text-foreground">{permModalMember.name}</strong> ({permModalMember.email}).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPermModalMember(null)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+              {/* Selector de Rol */}
+              <div className="space-y-1.5">
+                <Label htmlFor="perm-role" className="text-xs font-semibold">
+                  Rol del Colaborador
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPermRole("member");
+                      setPermSections([...DEFAULT_MEMBER_PERMISSIONS]);
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border text-left text-xs transition-all",
+                      permRole === "member"
+                        ? "border-brand bg-brand-tint/40 text-brand-text font-medium ring-1 ring-brand"
+                        : "border-border bg-card hover:bg-muted/40"
+                    )}
+                  >
+                    <p className="font-semibold">Miembro / Operador</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Accede a las herramientas operativas que le asignes en las casillas.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPermRole("admin");
+                      setPermSections([...DEFAULT_ADMIN_PERMISSIONS]);
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border text-left text-xs transition-all",
+                      permRole === "admin"
+                        ? "border-brand bg-brand-tint/40 text-brand-text font-medium ring-1 ring-brand"
+                        : "border-border bg-card hover:bg-muted/40"
+                    )}
+                  >
+                    <p className="font-semibold">Administrador</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Supervisa operaciones, reportes y configuración básica.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Botones de selección rápida */}
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Secciones Habilitadas ({permSections.length} de {ALL_SECTIONS.length})
+                </Label>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setPermSections([...ALL_SECTION_KEYS])}
+                    className="text-brand hover:underline font-medium"
+                  >
+                    Marcar todo
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setPermSections(["inbox"])}
+                    className="text-brand hover:underline font-medium"
+                  >
+                    Solo Bandeja
+                  </button>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setPermSections([])}
+                    className="text-muted-foreground hover:underline"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Checkboxes de Secciones */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {ALL_SECTIONS.map((sec) => {
+                  const isChecked = permSections.includes(sec.key);
+                  return (
+                    <label
+                      key={sec.key}
+                      className={cn(
+                        "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer select-none transition-all",
+                        isChecked
+                          ? "border-brand/40 bg-brand-tint/20 text-foreground"
+                          : "border-border bg-card/60 opacity-75 hover:opacity-100 hover:bg-muted/30"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleSection(sec.key)}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand accent-brand cursor-pointer"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold">{sec.label}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {sec.href}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                          {sec.description}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Acciones del Modal */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPermModalMember(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={savingPerms}
+                onClick={() => void handleSavePermissions()}
+              >
+                {savingPerms ? "Guardando…" : "Guardar Permisos"}
               </Button>
             </div>
           </div>
