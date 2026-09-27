@@ -24,5 +24,5 @@
 
 ## Fase 6: Verificación y Despliegue
 - [x] 6.1 Validar tipado y compilación con `npm run build`.
-- [ ] 6.2 Commit del hito y push a GitHub (`master`).
-- [ ] 6.3 Despliegue en Coolify (`panel.sys.toi.bo`) y verificación de salud en producción.
+- [x] 6.2 Commit del hito y push a GitHub (`master`).
+- [x] 6.3 Despliegue en Coolify (`panel.sys.toi.bo`) y verificación de salud en producción.
