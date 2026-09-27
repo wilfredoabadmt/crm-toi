@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MediaManagerSection } from "@/components/agent/media-manager";
+import { LlmConfigCard } from "@/components/agent/llm-config-card";
 
 type Profile = {
   enabled: boolean;
@@ -18,6 +19,14 @@ type Profile = {
   instructions: string | null;
   escalationRules: string | null;
   greeting: string | null;
+};
+
+type LlmConfig = {
+  baseUrl: string;
+  model: string;
+  tokenLast4: string | null;
+  isCustom: boolean;
+  configured: boolean;
 };
 
 type KbEntry = {
@@ -30,6 +39,7 @@ type KbEntry = {
 
 export function AgentClient() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [llmConfig, setLlmConfig] = useState<LlmConfig | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
@@ -43,6 +53,7 @@ export function AgentClient() {
     ]).catch(() => [null, null, null]);
     if (p) {
       setProfile(p.profile);
+      setLlmConfig(p.llmConfig);
       setAiConfigured(p.aiConfigured);
     }
     if (kb) setEntries(kb.entries);
@@ -114,8 +125,14 @@ export function AgentClient() {
       )}
 
       <div className="grid gap-6 p-6 lg:grid-cols-2 lg:items-start">
-        {/* Columna Izquierda: Comportamiento (Arriba) y Recursos de Imágenes y Medios (Abajo) */}
+        {/* Columna Izquierda: Proveedor LLM, Comportamiento y Recursos de Imágenes */}
         <div className="space-y-6">
+          {llmConfig && (
+            <LlmConfigCard
+              initialConfig={llmConfig}
+              onSaved={() => void refetch()}
+            />
+          )}
           <ProfileSection profile={profile} onSave={saveProfile} />
           <MediaManagerSection />
           <NapAgentCoverageCard />

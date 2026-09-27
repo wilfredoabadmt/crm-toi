@@ -23,18 +23,29 @@ const RETRY_DELAY_MS = 500;
 export async function chatJson<T>(
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number }
+  opts?: {
+    model?: string;
+    judge?: boolean;
+    timeoutMs?: number;
+    baseUrl?: string;
+    token?: string;
+  }
 ): Promise<ChatJsonResult<T>> {
-  if (!isAiConfigured()) {
+  const env = getEnv();
+  const token = opts?.token ?? process.env.OPENROUTER_API_TOKEN ?? env.OPENROUTER_API_TOKEN;
+  if (!token?.trim()) {
     return {
       ok: false,
       error: "not_configured",
-      detail: "Sin OPENROUTER_API_TOKEN configurado",
+      detail: "Sin API Token configurado para el proveedor de IA",
     };
   }
-  const env = getEnv();
+
+  const baseUrl = (opts?.baseUrl ?? process.env.OPENROUTER_BASE_URL ?? env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api").replace(/\/+$/, "");
+
   const model =
     opts?.model ??
+    process.env.OPENROUTER_MODEL ??
     (opts?.judge
       ? (env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL)
       : env.OPENROUTER_MODEL);
@@ -42,7 +53,7 @@ export async function chatJson<T>(
     return {
       ok: false,
       error: "not_configured",
-      detail: "Sin OPENROUTER_MODEL configurado",
+      detail: "Sin modelo de IA configurado",
     };
   }
 
@@ -60,7 +71,13 @@ export async function chatJson<T>(
             },
           ];
     try {
-      const raw = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      const raw = await callProvider({
+        baseUrl,
+        model,
+        token,
+        messages: attemptMessages,
+        timeoutMs: opts?.timeoutMs,
+      });
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -91,20 +108,22 @@ export async function chatJson<T>(
   };
 }
 
-async function callProvider(
-  model: string,
-  messages: ChatMessage[],
-  timeoutMs = 60_000
-): Promise<string> {
-  const env = getEnv();
+async function callProvider(input: {
+  baseUrl: string;
+  model: string;
+  token: string;
+  messages: ChatMessage[];
+  timeoutMs?: number;
+}): Promise<string> {
+  const { baseUrl, model, token, messages, timeoutMs = 60_000 } = input;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${env.OPENROUTER_BASE_URL}/v1/chat/completions`, {
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
         // El token jamás se loguea; solo viaja en este header.
-        Authorization: `Bearer ${env.OPENROUTER_API_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model, messages }),

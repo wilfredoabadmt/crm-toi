@@ -224,7 +224,14 @@ Gracias por compartir tu ubicación. Por el momento no contamos con cobertura en
       })),
   ];
 
-  const result = await chatJson(AgentAction, messages);
+  const { getLlmCredentials } = await import("@/server/ai/credentials");
+  const llmCreds = await getLlmCredentials(organizationId);
+
+  const result = await chatJson(AgentAction, messages, {
+    baseUrl: llmCreds.baseUrl,
+    model: llmCreds.model,
+    token: llmCreds.token ?? undefined,
+  });
   if (!result.ok) {
     if (result.error === "not_configured") return;
     // Fallo persistente del proveedor o salida imposible → escalar (FR-022).

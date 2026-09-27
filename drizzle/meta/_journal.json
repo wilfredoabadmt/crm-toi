@@ -78,6 +78,13 @@
       "when": 1790533000000,
       "tag": "0010_campaign_phone_number",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790534500000,
+      "tag": "0011_agent_llm_config",
+      "breakpoints": true
     }
   ]
 }

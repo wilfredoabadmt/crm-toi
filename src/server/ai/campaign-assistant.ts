@@ -154,7 +154,14 @@ ${
     })),
   ];
 
-  const result = await chatJson(CampaignAiAction, chatMessages);
+  const { getLlmCredentials } = await import("@/server/ai/credentials");
+  const llmCreds = await getLlmCredentials(organizationId);
+
+  const result = await chatJson(CampaignAiAction, chatMessages, {
+    baseUrl: llmCreds.baseUrl,
+    model: llmCreds.model,
+    token: llmCreds.token ?? undefined,
+  });
 
   if (!result.ok) {
     return {
