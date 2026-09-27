@@ -4,13 +4,25 @@
 Permitir que el propietario o administrador del negocio pueda **configurar, cambiar y personalizar el proveedor de LLM, el modelo de inteligencia artificial y su clave de API (Token)** directamente desde el panel de control del Agente (`/agent`), sin depender de variables estáticas ni requerir despliegues técnicos.
 
 Esto otorga:
-1. **Autonomía y Libertad de Elección**: El cliente puede alternar entre sus modelos favoritos (ej. OpenAI `gpt-4o`, `gpt-4o-mini`, DeepSeek `deepseek-chat`, Anthropic `claude-3.5-sonnet`, Meta `llama-3.3-70b-instruct` o endpoints compatibles con OpenAI).
+1. **Autonomía y Libertad de Elección**: El cliente puede alternar entre sus modelos favoritos (OpenAI `gpt-4o`, `gpt-4o-mini`, DeepSeek `deepseek-chat`, Anthropic `claude-3.5-sonnet`, Meta `llama-3.3-70b-instruct` o endpoints personalizados compatibles con OpenAI).
 2. **Control de Costos y Confianza**: El cliente puede usar su propia API Key con su propia facturación o límites de gasto.
-3. **Resiliencia Operativa**: Los cambios se sincronizan en memoria en tiempo real y se persisten de forma segura cifrada (AES-256-GCM), actualizando opcionalmente el archivo `.env` local sin interrumpir el funcionamiento del agente ni romper el sistema.
+3. **Resiliencia Operativa**: Los cambios se sincronizan en memoria en tiempo real, se persisten de forma segura cifrada (AES-256-GCM), y actualizan el archivo `.env` local sin interrumpir el funcionamiento del agente ni romper el sistema.
 
 ---
 
-## 2. Historias de Usuario
+## 2. Decisiones de Clarificación (Fase Clarify)
+
+1. **Proveedor y Endpoints:**
+   - Priorizar **OpenRouter por defecto** (`https://openrouter.ai/api`), lo que permite con una única API Key acceder a todo el catálogo de modelos líderes (OpenAI, DeepSeek, Anthropic Claude, Meta Llama, etc.).
+   - Mantener la opción de **Endpoint Personalizado compatible con OpenAI** para quienes usan endpoints directos o proxies locales/privados.
+2. **Sincronización del archivo `.env`:**
+   - Se actualizan las claves `OPENROUTER_API_TOKEN`, `OPENROUTER_MODEL` y `OPENROUTER_BASE_URL` en el archivo `.env` físico en disco si existe, y simultáneamente se actualiza la memoria del proceso (`process.env`) y la base de datos cifrada para efecto inmediato en caliente.
+3. **Ubicación en la Interfaz:**
+   - Una tarjeta destacada en la parte superior del panel del Agente (`/agent`), visible para administradores y propietarios, con previsualización del estado, botón "Probar conexión" y selector de modelos populares.
+
+---
+
+## 3. Historias de Usuario
 
 ### Historia 1: Configuración de Credenciales de LLM en el Panel del Agente
 **Como** propietario del CRM,  
@@ -18,12 +30,12 @@ Esto otorga:
 **para** ingresar mis propias credenciales y elegir el modelo que mejor se adapte a mis requerimientos y presupuesto.
 
 #### Criterios de Aceptación:
-- En la interfaz `/agent`, se muestra una sección visible para administradores/owners: "Configuración del Modelo de IA".
+- En la interfaz `/agent`, se muestra una sección destacada: "Proveedor y Modelo de IA".
 - Campos configurables:
-  - **Proveedor / Endpoint Base**: Selector rápido con opciones populares (OpenRouter por defecto `https://openrouter.ai/api`, OpenAI directo `https://api.openai.com/v1`, o Personalizado).
-  - **Modelo**: Campo de texto con autocompletado y sugerencias de modelos destacados (`openai/gpt-4o-mini`, `deepseek/deepseek-chat`, `anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`).
-  - **Token de API**: Campo protegido (tipo contraseña) para ingresar la API Key. Se muestran solo los últimos 4 dígitos una vez guardada.
-- Si no hay token configurado, el sistema muestra el banner informativo de advertencia guiando al usuario.
+  - **Proveedor / Endpoint Base**: OpenRouter por defecto (`https://openrouter.ai/api`) o Personalizado.
+  - **Modelo**: Selector con sugerencias rápidas (`openai/gpt-4o-mini`, `deepseek/deepseek-chat`, `anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`) y entrada manual libre.
+  - **Token de API**: Campo protegido (tipo contraseña). Una vez guardado, se muestran únicamente los últimos 4 caracteres.
+- Banner de advertencia guiando al usuario si no hay token configurado.
 
 ---
 
@@ -53,7 +65,7 @@ Esto otorga:
 
 ---
 
-## 3. Requerimientos Funcionales
+## 4. Requerimientos Funcionales
 
 - **FR-001**: Extender el esquema de `agentProfile` en base de datos para almacenar `llmBaseUrl`, `llmModel`, `llmTokenCipher`, `llmTokenIv`, `llmTokenTag`.
 - **FR-002**: Generar migración limpia e incremental de base de datos (`drizzle/`).
@@ -64,7 +76,7 @@ Esto otorga:
 
 ---
 
-## 4. Requerimientos No Funcionales
+## 5. Requerimientos No Funcionales
 
 - **NFR-001 (Seguridad Absoluta)**: El token completo de API nunca se devuelve en respuestas GET al frontend ni se expone en logs.
 - **NFR-002 (Cero Tiempo de Inactividad)**: El cambio de modelo o token tiene efecto en el siguiente turno del agente sin reiniciar procesos ni tirar conexiones activas.
@@ -72,7 +84,7 @@ Esto otorga:
 
 ---
 
-## 5. Criterios de Éxito del MVP
+## 6. Criterios de Éxito del MVP
 1. El usuario puede ingresar a `/agent`, ver la tarjeta de configuración de IA y cargar su propia clave y modelo.
 2. El botón de prueba confirma que la API Key y el modelo funcionan en menos de 2 segundos.
 3. Al guardar, el agente responde inmediatamente en el inbox utilizando el nuevo modelo configurado.
