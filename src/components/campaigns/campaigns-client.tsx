@@ -14,11 +14,13 @@ import {
   Send,
   AlertCircle,
   FileCheck,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CampaignWizardModal } from "./campaign-wizard-modal";
 import { CampaignDetailModal } from "./campaign-detail-modal";
+import { CampaignAiModal } from "./campaign-ai-modal";
 
 interface CampaignItem {
   id: string;
@@ -66,6 +68,7 @@ export function CampaignsClient({ userRole }: { userRole: string }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "scheduled" | "completed" | "pending_approval" | "draft">("all");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
 
   const fetchCampaigns = useCallback(async () => {
@@ -135,6 +138,16 @@ export function CampaignsClient({ userRole }: { userRole: string }) {
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
             Actualizar
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setAiModalOpen(true)}
+            className="border-primary/40 text-primary hover:bg-primary/10 hover:text-primary gap-1.5 shadow-2xs font-medium"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+            Crear con Asistente IA
           </Button>
 
           <Button
@@ -364,10 +377,18 @@ export function CampaignsClient({ userRole }: { userRole: string }) {
         )}
       </div>
 
-      {/* Modal Asistente de Creación */}
+      {/* Modal Asistente de Creación Manual */}
       <CampaignWizardModal
         isOpen={wizardOpen}
         onClose={() => setWizardOpen(false)}
+        onSuccess={() => void fetchCampaigns()}
+        userRole={userRole}
+      />
+
+      {/* Modal Asistente Inteligente IA */}
+      <CampaignAiModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
         onSuccess={() => void fetchCampaigns()}
         userRole={userRole}
       />

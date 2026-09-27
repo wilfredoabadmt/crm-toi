@@ -9,6 +9,8 @@ export interface CreateCampaignInput {
   mediaUrl?: string | null;
   mediaType?: "image" | "video" | "document" | null;
   variableValues?: Record<string, string>;
+  phoneNumberId?: string | null;
+  departmentId?: string | null;
   targetType: "all_contacts" | "pipeline_stages";
   targetStageIds?: string[];
   scheduledAt?: string | null; // ISO string
@@ -262,6 +264,8 @@ export async function createCampaign(
       mediaUrl: input.mediaUrl ?? null,
       mediaType: input.mediaType ?? null,
       variableValues: input.variableValues ?? null,
+      phoneNumberId: input.phoneNumberId ?? null,
+      departmentId: input.departmentId ?? null,
       targetType: input.targetType,
       targetStageIds: input.targetStageIds ?? null,
       totalRecipients: audience.length,

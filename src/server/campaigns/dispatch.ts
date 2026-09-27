@@ -2,7 +2,7 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { normalizeRecipient } from "@/lib/meta/client";
-import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
+import { getCredentialsByOrg, getCredentialsForLine } from "@/server/whatsapp/credentials";
 import { callGraphSend } from "@/server/inbox/send";
 import { countVariables } from "@/server/whatsapp/templates";
 import { scoped } from "@/lib/db/tenant";
@@ -85,6 +85,7 @@ export async function sendTestCampaignMessage(input: {
   mediaUrl?: string | null;
   mediaType?: "image" | "video" | "document" | null;
   variableValues?: Record<string, string> | null;
+  phoneNumberId?: string | null;
 }) {
   const db = getDb();
   const [template] = await db
@@ -103,7 +104,7 @@ export async function sendTestCampaignMessage(input: {
     throw new Error("La plantilla no está aprobada por Meta");
   }
 
-  const credentials = await getCredentialsByOrg(input.organizationId);
+  const credentials = await getCredentialsForLine(input.organizationId, input.phoneNumberId);
   if (!credentials) throw new Error("No hay número de WhatsApp conectado");
   if (credentials.status === "reconnect_required") {
     throw new Error("El token de WhatsApp expiró. Reconecta el número.");
@@ -155,7 +156,10 @@ export async function executeCampaign(campaignId: string): Promise<void> {
     return;
   }
 
-  const creds = await getCredentialsByOrg(c.campaign.organizationId);
+  const creds = await getCredentialsForLine(
+    c.campaign.organizationId,
+    c.campaign.phoneNumberId
+  );
   if (!creds || creds.status === "reconnect_required") {
     await db
       .update(schema.campaign)

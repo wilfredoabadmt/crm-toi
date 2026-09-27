@@ -71,6 +71,13 @@
       "when": 1790531734258,
       "tag": "0009_perpetual_shape",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790533000000,
+      "tag": "0010_campaign_phone_number",
+      "breakpoints": true
     }
   ]
 }

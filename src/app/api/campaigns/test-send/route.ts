@@ -10,6 +10,7 @@ const testSendSchema = z.object({
   mediaUrl: z.string().nullable().optional(),
   mediaType: z.enum(["image", "video", "document"]).nullable().optional(),
   variableValues: z.record(z.string(), z.string()).optional(),
+  phoneNumberId: z.string().nullable().optional(),
 });
 
 export const POST = withAuth(async (session, req: Request) => {
@@ -24,6 +25,7 @@ export const POST = withAuth(async (session, req: Request) => {
       mediaUrl: body.data.mediaUrl,
       mediaType: body.data.mediaType,
       variableValues: body.data.variableValues,
+      phoneNumberId: body.data.phoneNumberId,
     });
 
     return Response.json({

@@ -539,6 +539,8 @@ export const campaign = pgTable(
     mediaUrl: text("media_url"),
     mediaType: text("media_type", { enum: ["image", "video", "document"] }),
     variableValues: jsonb("variable_values").$type<Record<string, string>>(),
+    phoneNumberId: text("phone_number_id"),
+    departmentId: text("department_id"),
     targetType: text("target_type", { enum: ["all_contacts", "pipeline_stages"] })
       .notNull()
       .default("all_contacts"),
