@@ -10,6 +10,11 @@ node_modules
 images
 tests
 *.md
+docs
+specs
+.tmp*
+*.log
 .env
 .env.*
 !/.env.example
+

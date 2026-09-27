@@ -235,7 +235,7 @@ export function InboxClient({
 
       <section
         className={cn(
-          "shrink-0 overflow-hidden border-l transition-[width] duration-[220ms]",
+          "shrink-0 overflow-hidden border-l transition-[width] duration-200",
           panelOpen && selected ? "w-[320px]" : "w-0 border-l-0"
         )}
       >
