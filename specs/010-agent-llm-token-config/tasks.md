@@ -17,6 +17,6 @@
 - [x] 3.3 Integrar `LlmConfigCard` en `src/components/agent/agent-client.tsx` en la parte superior del panel del Agente.
 
 ## Fase 4: Verificación, Build y Despliegue
-- [ ] 4.1 Validar tipado y compilación local con `npm run build`.
-- [ ] 4.2 Commit del hito y push a GitHub (`master`).
-- [ ] 4.3 Despliegue en Coolify (`panel.sys.toi.bo`) y comprobación de salud en producción.
+- [x] 4.1 Validar tipado y compilación local con `npm run build`.
+- [x] 4.2 Commit del hito y push a GitHub (`master`).
+- [x] 4.3 Despliegue en Coolify (`panel.sys.toi.bo`) y comprobación de salud en producción.
